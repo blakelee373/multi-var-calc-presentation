@@ -34,9 +34,6 @@ function fy(x: number, y: number) {
 //   input-x  → world +x
 //   input-y  → world -z
 //   height z → world +y
-function toWorld(xIn: number, yIn: number): [number, number, number] {
-  return [xIn, f(xIn, yIn), -yIn];
-}
 
 function Surface() {
   const geometry = useMemo(() => {
@@ -271,38 +268,32 @@ export function Hill3D({
   interactive = false,
   rotate = true,
 }: Hill3DProps) {
-  // Sample point chosen so +x AND +y both move *away* from the hill peak
-  // at (CX, CY) = (0.4, 0.2). Both partial arrows then live on the
-  // gentle descending side and stay visible above the surface.
+  // Sample point chosen so +x and +y move AWAY from the hill peak at
+  // (CX, CY) = (0.4, 0.2). Both partial arrows then naturally descend
+  // along the surface (visible from any angle); the gradient arrow
+  // climbs UP the surface toward the peak.
   const px = 1.4;
   const py = 1.4;
-  const here = toWorld(px, py);
-  // lift arrows slightly above surface for visibility
-  const ARROW_LIFT = 0.06;
-  const lifted: [number, number, number] = [
-    here[0],
-    here[1] + ARROW_LIFT,
-    here[2],
-  ];
+  const SURFACE_LIFT = 0.04; // tiny lift to avoid z-fighting with mesh
+  const onSurface = (
+    x: number,
+    y: number
+  ): [number, number, number] => [x, f(x, y) + SURFACE_LIFT, -y];
+  const here = onSurface(px, py);
 
-  // Gradient direction in input space
   const gx = fx(px, py);
   const gy = fy(px, py);
   const glen = Math.hypot(gx, gy) || 1;
   const ugx = gx / glen;
   const ugy = gy / glen;
 
-  // Length of demo arrows in INPUT space (not lifted up the surface)
   const LEN = 1.2;
-  // Partial arrows: pure +x and pure +y (input) directions, flat
-  const fxTip: [number, number, number] = [px + LEN, lifted[1], -py];
-  const fyTip: [number, number, number] = [px, lifted[1], -(py + LEN)];
-  // Gradient arrow: flat in input plane along (ugx, ugy)
-  const gradTip: [number, number, number] = [
-    px + ugx * LEN,
-    lifted[1],
-    -(py + ugy * LEN),
-  ];
+  // Partial arrows: input-space direction along +x / +y, but BOTH endpoints
+  // anchored on the surface so the arrow visibly traces the slope.
+  const fxTip = onSurface(px + LEN, py);
+  const fyTip = onSurface(px, py + LEN);
+  // Gradient arrow: input-space direction (ugx, ugy), tip on surface.
+  const gradTip = onSurface(px + ugx * LEN, py + ugy * LEN);
 
   // Rotate every mode — the arrows still represent their input-space
   // directions; viewer perspective just changes.
@@ -329,23 +320,20 @@ export function Hill3D({
           <Surface />
           <ContourLines />
 
-          {mode !== "static" && <PulseSphere position={lifted} />}
+          {mode !== "static" && <PulseSphere position={here} />}
 
-          {/* CANDIDATES (many) */}
+          {/* CANDIDATES (many) — anchored on the surface */}
           {mode === "many" &&
             Array.from({ length: 10 }).map((_, i) => {
               const a = (i / 10) * Math.PI * 2;
-              const cx = Math.cos(a);
-              const cy = Math.sin(a);
-              const tip: [number, number, number] = [
-                px + cx * 0.6,
-                lifted[1],
-                -(py + cy * 0.6),
-              ];
+              const tip = onSurface(
+                px + Math.cos(a) * 0.6,
+                py + Math.sin(a) * 0.6
+              );
               return (
                 <Arrow
                   key={i}
-                  from={lifted}
+                  from={here}
                   to={tip}
                   color={palette.slate}
                   thickness={0.025}
@@ -354,22 +342,19 @@ export function Hill3D({
               );
             })}
 
-          {/* BEST: many faded + one amber */}
+          {/* BEST: candidates faded + one amber, all on the surface */}
           {mode === "best" && (
             <>
               {Array.from({ length: 10 }).map((_, i) => {
                 const a = (i / 10) * Math.PI * 2;
-                const cx = Math.cos(a);
-                const cy = Math.sin(a);
-                const tip: [number, number, number] = [
-                  px + cx * 0.55,
-                  lifted[1],
-                  -(py + cy * 0.55),
-                ];
+                const tip = onSurface(
+                  px + Math.cos(a) * 0.55,
+                  py + Math.sin(a) * 0.55
+                );
                 return (
                   <Arrow
                     key={i}
-                    from={lifted}
+                    from={here}
                     to={tip}
                     color="#CBD5E1"
                     thickness={0.018}
@@ -378,22 +363,21 @@ export function Hill3D({
                 );
               })}
               <Arrow
-                from={lifted}
+                from={here}
                 to={gradTip}
                 color={palette.amber}
                 thickness={0.055}
                 headSize={0.26}
                 emissive
-                onTop
               />
             </>
           )}
 
-          {/* PARTIALS: flat +x and +y arrows (no in-3D labels; caption is in HTML) */}
+          {/* PARTIALS: surface-anchored arrows along +x and +y */}
           {mode === "partials" && (
             <>
               <Arrow
-                from={lifted}
+                from={here}
                 to={fxTip}
                 color={palette.teal}
                 thickness={0.07}
@@ -402,7 +386,7 @@ export function Hill3D({
                 delay={0.2}
               />
               <Arrow
-                from={lifted}
+                from={here}
                 to={fyTip}
                 color="#0F766E"
                 thickness={0.07}
@@ -413,27 +397,27 @@ export function Hill3D({
             </>
           )}
 
-          {/* GRADIENT: partials + ∇f arrow (caption in HTML) */}
+          {/* GRADIENT: partials + ∇f arrow, all on the surface */}
           {mode === "gradient" && (
             <>
               <Arrow
-                from={lifted}
-                to={[px + LEN * 0.65, lifted[1], -py]}
+                from={here}
+                to={onSurface(px + LEN * 0.65, py)}
                 color={palette.teal}
                 thickness={0.045}
                 headSize={0.2}
                 delay={0.2}
               />
               <Arrow
-                from={lifted}
-                to={[px, lifted[1], -(py + LEN * 0.65)]}
+                from={here}
+                to={onSurface(px, py + LEN * 0.65)}
                 color="#0F766E"
                 thickness={0.045}
                 headSize={0.2}
                 delay={0.7}
               />
               <Arrow
-                from={lifted}
+                from={here}
                 to={gradTip}
                 color={palette.amber}
                 thickness={0.075}
@@ -441,7 +425,6 @@ export function Hill3D({
                 emissive
                 delay={1.2}
                 duration={1.0}
-                onTop
               />
             </>
           )}

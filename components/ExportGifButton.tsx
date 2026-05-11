@@ -1,6 +1,6 @@
 "use client";
 
-import { toPng } from "html-to-image";
+import { toCanvas } from "html-to-image";
 import { useState, type RefObject } from "react";
 
 type ExportGifButtonProps = {
@@ -70,35 +70,38 @@ export function ExportGifButton({
       const octx = off.getContext("2d");
       if (!octx) throw new Error("could not create offscreen canvas");
 
+      let capturedFrames = 0;
       const start = performance.now();
       for (let i = 0; i < totalFrames; i++) {
         const target = start + (i / (totalFrames - 1)) * duration;
         const wait = target - performance.now();
         if (wait > 0) await new Promise((r) => setTimeout(r, wait));
 
-        let dataUrl: string;
+        // toCanvas returns a real HTMLCanvasElement so we skip the
+        // dataURL → Image decode round-trip that was failing on frame 2
+        // when html-to-image embedded a WebGL canvas as a giant data URL.
+        let snapshot: HTMLCanvasElement;
         try {
-          dataUrl = await toPng(node, {
+          snapshot = await toCanvas(node, {
             pixelRatio,
-            cacheBust: true,
+            cacheBust: false,
             backgroundColor: "#FFFFFF",
           });
         } catch (e) {
-          console.warn(`frame ${i} toPng failed, skipping`, e);
+          console.warn(`frame ${i} snapshot failed, skipping`, e);
           continue;
         }
-        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const im = new Image();
-          im.onload = () => resolve(im);
-          im.onerror = () =>
-            reject(new Error(`image decode failed on frame ${i}`));
-          im.src = dataUrl;
-        });
         octx.fillStyle = "#FFFFFF";
         octx.fillRect(0, 0, width, height);
-        octx.drawImage(img, 0, 0, width, height);
+        octx.drawImage(snapshot, 0, 0, width, height);
         gif.addFrame(octx, { delay: frameDelay, copy: true });
+        capturedFrames++;
         setProgress(Math.round(((i + 1) / totalFrames) * 70));
+      }
+      if (capturedFrames === 0) {
+        throw new Error(
+          "no frames captured — try refreshing the page or check the console"
+        );
       }
 
       gif.on("progress", (p: number) => {
