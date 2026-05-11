@@ -222,7 +222,7 @@ export function Bowl3D({ className }: { className?: string }) {
         <directionalLight position={[6, 9, 4]} intensity={1.3} />
         <directionalLight position={[-4, 3, -5]} intensity={0.3} color="#BFDBFE" />
 
-        <group rotation={[0, Math.PI, 0]}>
+        <group rotation={[0, (3 * Math.PI) / 2, 0]}>
           <Bowl />
           <BowlContours />
           <PulsePoint position={here} />

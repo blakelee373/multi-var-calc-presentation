@@ -281,7 +281,7 @@ export function Hill3D({ mode, className, interactive = false }: Hill3DProps) {
         {/* 180° rotation around Y brings the sample to the camera-facing
             side of the hill. Without it, the sample (and its arrows) sit
             behind the bump and read as missing in the still frame. */}
-        <group rotation={[0, Math.PI, 0]}>
+        <group rotation={[0, (3 * Math.PI) / 2, 0]}>
           <Surface />
           <ContourLines />
 
