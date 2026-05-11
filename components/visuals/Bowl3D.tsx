@@ -174,25 +174,23 @@ function PulsePoint({ position }: { position: [number, number, number] }) {
 }
 
 export function Bowl3D({ className }: { className?: string }) {
-  // Visible point: scale (1,2) into the smaller HALF=2.2 domain so it
-  // sits inside the bowl rather than at the rim.
-  const px = 0.9;
-  const py = 1.6;
+  // Point + arrow both sit ON the bowl surface. The arrow is a chord
+  // between two surface points along the gradient direction; for a
+  // convex bowl that chord lies slightly above the surface curve all
+  // the way across, so it reads as "going up the bowl."
+  const px = 0.6;
+  const py = 1.0;
   const pz = bowl(px, py);
-  const ARROW_LIFT = 0.18;
-  const here: [number, number, number] = [px, pz + ARROW_LIFT, -py];
-  // ∇f(x,y) = ⟨2x, 2y⟩; at (0.9, 1.6) → ⟨1.8, 3.2⟩.
+  const here: [number, number, number] = [px, pz, -py];
   const gx = 2 * px;
   const gy = 2 * py;
   const glen = Math.hypot(gx, gy);
   const ux = gx / glen;
   const uy = gy / glen;
-  const reach = 1.1;
-  const tip: [number, number, number] = [
-    px + ux * reach,
-    pz + ARROW_LIFT,
-    -(py + uy * reach),
-  ];
+  const reach = 0.9;
+  const tipX = px + ux * reach;
+  const tipY = py + uy * reach;
+  const tip: [number, number, number] = [tipX, bowl(tipX, tipY), -tipY];
 
   return (
     <div className={className}>

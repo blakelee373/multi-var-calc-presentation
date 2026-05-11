@@ -151,6 +151,7 @@ function Arrow({
   emissive = false,
   delay = 0,
   duration = 0.9,
+  onTop = false,
 }: {
   from: [number, number, number];
   to: [number, number, number];
@@ -160,6 +161,7 @@ function Arrow({
   emissive?: boolean;
   delay?: number;
   duration?: number;
+  onTop?: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const startRef = useRef<number | null>(null);
@@ -191,9 +193,15 @@ function Arrow({
 
   if (len < 0.001) return null;
 
+  const renderOrder = onTop ? 10 : 0;
+
   return (
     <group ref={groupRef} position={from}>
-      <mesh position={localMid.toArray()} quaternion={quat}>
+      <mesh
+        position={localMid.toArray()}
+        quaternion={quat}
+        renderOrder={renderOrder}
+      >
         <cylinderGeometry
           args={[thickness, thickness, Math.max(len - headSize, 0.01), 16]}
         />
@@ -202,18 +210,23 @@ function Arrow({
           emissive={emissive ? color : "#000000"}
           emissiveIntensity={emissive ? 0.4 : 0}
           roughness={0.45}
+          depthTest={!onTop}
         />
       </mesh>
-      <mesh position={localTip.toArray()} quaternion={quat}>
+      <mesh
+        position={localTip.toArray()}
+        quaternion={quat}
+        renderOrder={renderOrder}
+      >
         <coneGeometry args={[headSize * 0.55, headSize, 20]} />
         <meshStandardMaterial
           color={color}
           emissive={emissive ? color : "#000000"}
           emissiveIntensity={emissive ? 0.4 : 0}
           roughness={0.45}
+          depthTest={!onTop}
         />
       </mesh>
-      {/* avoid unused-var TS warning for mid */}
       <group visible={false} position={mid.toArray()} />
     </group>
   );
@@ -258,9 +271,11 @@ export function Hill3D({
   interactive = false,
   rotate = true,
 }: Hill3DProps) {
-  // Sample point on the descending flank.
+  // Sample point chosen so +x AND +y both move *away* from the hill peak
+  // at (CX, CY) = (0.4, 0.2). Both partial arrows then live on the
+  // gentle descending side and stay visible above the surface.
   const px = 1.4;
-  const py = -1.0;
+  const py = 1.4;
   const here = toWorld(px, py);
   // lift arrows slightly above surface for visibility
   const ARROW_LIFT = 0.06;
@@ -369,6 +384,7 @@ export function Hill3D({
                 thickness={0.055}
                 headSize={0.26}
                 emissive
+                onTop
               />
             </>
           )}
@@ -425,6 +441,7 @@ export function Hill3D({
                 emissive
                 delay={1.2}
                 duration={1.0}
+                onTop
               />
             </>
           )}
