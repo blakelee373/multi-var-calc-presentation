@@ -114,31 +114,31 @@ export function ExportGifButton({
       const MAX_FRAMES = 24;
       const sessionStart = performance.now();
       let prevCaptureTime = sessionStart;
+      let lastFailureReason: string | null = null;
 
       while (frames.length < MAX_FRAMES) {
-        // Per-frame timeout — 2s is generous; toCanvas of a slide is
-        // typically 100-300ms. If we exceed this, something's wrong
-        // (lost WebGL context, etc) and we should surface it instead
-        // of looping silently.
+        // 5s timeout — html-to-image can leak <style> nodes between
+        // calls which makes each subsequent toCanvas slower than the
+        // last. The first call is usually 200ms; the 5th can be 2s+.
         let snapshot: HTMLCanvasElement;
         try {
           snapshot = await withTimeout(
             toCanvas(node, {
               pixelRatio,
-              // cacheBust true forces fresh resource fetches and
-              // bypasses html-to-image's internal cache between calls.
-              cacheBust: true,
+              cacheBust: false,
               backgroundColor: "#FFFFFF",
             }),
-            2500,
+            5000,
             `frame ${frames.length} capture`
           );
         } catch (e) {
+          lastFailureReason = e instanceof Error ? e.message : String(e);
           if (frames.length === 0) throw e;
-          console.warn("frame capture failed mid-loop, stopping early", e);
+          console.warn("frame capture failed mid-loop:", lastFailureReason);
           break;
         }
         if (!snapshot.width || !snapshot.height) {
+          lastFailureReason = `snapshot was ${snapshot.width}×${snapshot.height}`;
           if (frames.length === 0) {
             throw new Error("first frame produced 0×0 canvas");
           }
@@ -164,15 +164,24 @@ export function ExportGifButton({
         setProgress(Math.round((elapsed / duration) * 50));
         if (elapsed >= duration) break;
 
+        // Clean up <style> nodes that html-to-image leaks into <head>
+        // between calls — without this, each subsequent toCanvas runs
+        // slower than the last and eventually hits the timeout.
+        document
+          .querySelectorAll('style[data-html2canvas-internal]')
+          .forEach((n) => n.remove());
+
         // Wait for the browser to actually paint at least one frame so
         // r3f / framer-motion advance pixels before the next capture.
-        // 120ms ≈ 7 paint frames at 60fps — plenty for r3f to redraw.
         await waitForPaint(120);
       }
 
       if (frames.length < 2) {
+        const detail = lastFailureReason
+          ? ` (last failure: ${lastFailureReason})`
+          : "";
         throw new Error(
-          `only ${frames.length} frame(s) captured — animations may not be running. Try reloading the slide.`
+          `only ${frames.length} frame(s) captured${detail}. Try reloading the slide.`
         );
       }
 
