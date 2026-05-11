@@ -91,9 +91,15 @@ export function DeckShell() {
         </div>
       </div>
 
+      {/* restartKey lives on <Active /> rather than on the motion.div
+          so that bumping it (for GIF capture) remounts just the slide
+          content — not the whole wrapper. If the key were on motion.div,
+          AnimatePresence's exit/enter would unmount SlideFrame for
+          ~250ms, the slideRef would point to a detached node, and the
+          2nd toCanvas call would produce a 0×0 canvas. */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={`${index}-${restartKey}`}
+          key={index}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -12 }}
@@ -106,7 +112,7 @@ export function DeckShell() {
             totalSlides={total}
             sectionLabel={meta.section}
           >
-            <Active />
+            <Active key={restartKey} />
           </SlideFrame>
         </motion.div>
       </AnimatePresence>
