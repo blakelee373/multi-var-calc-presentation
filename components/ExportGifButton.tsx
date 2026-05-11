@@ -34,8 +34,29 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   });
 }
 
-const nextFrame = () =>
-  new Promise<void>((r) => requestAnimationFrame(() => r()));
+// Wait for real wall-time to pass via setTimeout, with rAF before + after
+// so the browser actually paints. A single rAF resolves BEFORE paint, so
+// using only rAF lets r3f / framer-motion fall behind — the symptom is
+// a GIF where every frame is pixel-identical because the WebGL canvas
+// backbuffer never refreshed between captures.
+const waitForPaint = (ms: number) =>
+  new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        requestAnimationFrame(() => resolve());
+      }, ms);
+    });
+  });
+
+// Quick fingerprint of frame pixels so we can detect "all frames
+// identical" without expensive full comparison. Samples every 64th
+// byte from the Uint8ClampedArray and sums them.
+function fingerprint(img: ImageData) {
+  const d = img.data;
+  let h = 0;
+  for (let i = 0; i < d.length; i += 64) h = (h * 31 + d[i]) | 0;
+  return h;
+}
 
 export function ExportGifButton({
   targetRef,
@@ -104,15 +125,15 @@ export function ExportGifButton({
           snapshot = await withTimeout(
             toCanvas(node, {
               pixelRatio,
-              cacheBust: false,
+              // cacheBust true forces fresh resource fetches and
+              // bypasses html-to-image's internal cache between calls.
+              cacheBust: true,
               backgroundColor: "#FFFFFF",
             }),
-            2000,
+            2500,
             `frame ${frames.length} capture`
           );
         } catch (e) {
-          // If the very first frame fails, give up. If a later frame
-          // fails, we still have what we have and can encode it.
           if (frames.length === 0) throw e;
           console.warn("frame capture failed mid-loop, stopping early", e);
           break;
@@ -143,10 +164,10 @@ export function ExportGifButton({
         setProgress(Math.round((elapsed / duration) * 50));
         if (elapsed >= duration) break;
 
-        // Yield so framer-motion / r3f can advance their clocks before
-        // the next capture. Without this, toCanvas would capture the
-        // same frame over and over (animations frozen behind the loop).
-        await nextFrame();
+        // Wait for the browser to actually paint at least one frame so
+        // r3f / framer-motion advance pixels before the next capture.
+        // 120ms ≈ 7 paint frames at 60fps — plenty for r3f to redraw.
+        await waitForPaint(120);
       }
 
       if (frames.length < 2) {
@@ -154,6 +175,19 @@ export function ExportGifButton({
           `only ${frames.length} frame(s) captured — animations may not be running. Try reloading the slide.`
         );
       }
+
+      // Sanity check: if every captured frame fingerprints identically,
+      // the animations didn't advance during capture and the resulting
+      // GIF would be a static loop. Surface this loudly instead of
+      // shipping a broken file.
+      const prints = frames.map((f) => fingerprint(f.data));
+      const allSame = prints.every((p) => p === prints[0]);
+      if (allSame) {
+        throw new Error(
+          `captured ${frames.length} identical frames — animations did not advance. Check that the slide has motion (try slide 5, 7, or 9).`
+        );
+      }
+      console.log("GIF capture fingerprints:", prints);
       setProgress(50);
 
       // Phase 2: hand all captured frames to gif.js at once, then render.
