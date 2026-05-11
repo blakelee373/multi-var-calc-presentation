@@ -11,10 +11,6 @@ type ExportGifButtonProps = {
   onPrepare?: () => Promise<void> | void;
 };
 
-// Wait up to `ms` for `p` to settle. If it doesn't, reject so the
-// caller can decide whether to retry or abort. Without this guard,
-// html-to-image can hang silently when it races a WebGL repaint and
-// the export loop appears "stuck at 3%".
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(
@@ -34,23 +30,6 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   });
 }
 
-// Wait for real wall-time to pass via setTimeout, with rAF before + after
-// so the browser actually paints. A single rAF resolves BEFORE paint, so
-// using only rAF lets r3f / framer-motion fall behind — the symptom is
-// a GIF where every frame is pixel-identical because the WebGL canvas
-// backbuffer never refreshed between captures.
-const waitForPaint = (ms: number) =>
-  new Promise<void>((resolve) => {
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        requestAnimationFrame(() => resolve());
-      }, ms);
-    });
-  });
-
-// Quick fingerprint of frame pixels so we can detect "all frames
-// identical" without expensive full comparison. Samples every 64th
-// byte from the Uint8ClampedArray and sums them.
 function fingerprint(img: ImageData) {
   const d = img.data;
   let h = 0;
@@ -62,7 +41,7 @@ export function ExportGifButton({
   targetRef,
   filename,
   duration = 3500,
-  width = 960,
+  width = 1280,
   onPrepare,
 }: ExportGifButtonProps) {
   const [busy, setBusy] = useState(false);
@@ -95,137 +74,145 @@ export function ExportGifButton({
         throw new Error("GIF worker missing at /gif.worker.js");
       }
 
-      // Phase 1: capture frames into ImageData buffers.
+      // ─── HYBRID CAPTURE STRATEGY ────────────────────────────────
+      // toCanvas takes ~300ms per call which caps us at ~3 fps. The
+      // slow path is SVG serialization + image decode of the entire
+      // DOM. But the DOM is mostly STATIC during the capture window
+      // — the only thing actually moving is the WebGL canvas (r3f
+      // arrow growth, pulse sphere). So:
       //
-      // We CANNOT call gif.addFrame inside the capture loop — gif.js
-      // workers start encoding immediately and compete with toCanvas
-      // for main-thread time, which is what was causing the "stuck at
-      // 3%" hang. Decoupling capture from encoding fixes this and
-      // also lets us yield to the browser via rAF between frames so
-      // framer-motion / r3f animations have time to advance.
-      const captureCanvas = document.createElement("canvas");
-      captureCanvas.width = width;
-      captureCanvas.height = height;
-      const cctx = captureCanvas.getContext("2d");
-      if (!cctx) throw new Error("could not create capture canvas");
+      //   1. Take ONE expensive toCanvas snapshot as the "base"
+      //      (captures all the text, SVG mountains, formulas, etc).
+      //   2. Locate every live <canvas> inside the slide.
+      //   3. Per frame: drawImage(base) + drawImage(each live canvas)
+      //      at its measured position. That's a ~5ms operation, so
+      //      we can run at 20-30 fps without timeouts.
+      //
+      // Cost: framer-motion 250ms text fade-ins don't animate in the
+      // GIF — they're frozen at the post-entrance state. That's fine
+      // because the recordable interesting motion is the 3D scene.
+      // ────────────────────────────────────────────────────────────
+
+      setProgress(5);
+      const baseSnapshot = await withTimeout(
+        toCanvas(node, {
+          pixelRatio,
+          cacheBust: false,
+          backgroundColor: "#FFFFFF",
+        }),
+        8000,
+        "base snapshot"
+      );
+      if (!baseSnapshot.width || !baseSnapshot.height) {
+        throw new Error("base snapshot was 0×0 — try reopening the slide");
+      }
+      // Clean up the <style> nodes html-to-image leaks into <head>.
+      document
+        .querySelectorAll("style[data-html2canvas-internal]")
+        .forEach((n) => n.remove());
+
+      const baseRect = node.getBoundingClientRect();
+      const liveCanvases = Array.from(
+        node.querySelectorAll("canvas")
+      ) as HTMLCanvasElement[];
+      const overlays = liveCanvases.map((c) => {
+        const r = c.getBoundingClientRect();
+        return {
+          canvas: c,
+          dx: (r.left - baseRect.left) * pixelRatio,
+          dy: (r.top - baseRect.top) * pixelRatio,
+          dw: r.width * pixelRatio,
+          dh: r.height * pixelRatio,
+        };
+      });
+
+      // Compositing canvas — base + live overlays land here each frame.
+      const frameCanvas = document.createElement("canvas");
+      frameCanvas.width = width;
+      frameCanvas.height = height;
+      const fctx = frameCanvas.getContext("2d");
+      if (!fctx) throw new Error("could not create compositing canvas");
 
       type Frame = { data: ImageData; delay: number };
       const frames: Frame[] = [];
-      const MAX_FRAMES = 36;
+      // Target ~20 fps over the capture window. Browser may not hit
+      // exactly this rate but the loop's setTimeout target keeps it
+      // close, and each frame's GIF delay reflects real elapsed time
+      // so playback always matches reality.
+      const TARGET_FPS = 20;
+      const TARGET_INTERVAL = 1000 / TARGET_FPS;
+      const totalFrames = Math.round((duration / 1000) * TARGET_FPS);
+
       const sessionStart = performance.now();
       let prevCaptureTime = sessionStart;
-      let lastFailureReason: string | null = null;
 
-      while (frames.length < MAX_FRAMES) {
-        // 5s timeout — html-to-image can leak <style> nodes between
-        // calls which makes each subsequent toCanvas slower than the
-        // last. The first call is usually 200ms; the 5th can be 2s+.
-        let snapshot: HTMLCanvasElement;
-        try {
-          snapshot = await withTimeout(
-            toCanvas(node, {
-              pixelRatio,
-              cacheBust: false,
-              backgroundColor: "#FFFFFF",
-            }),
-            5000,
-            `frame ${frames.length} capture`
-          );
-        } catch (e) {
-          lastFailureReason = e instanceof Error ? e.message : String(e);
-          if (frames.length === 0) throw e;
-          console.warn("frame capture failed mid-loop:", lastFailureReason);
-          break;
+      for (let i = 0; i < totalFrames; i++) {
+        const targetTime = sessionStart + i * TARGET_INTERVAL;
+        const waitFor = targetTime - performance.now();
+        if (waitFor > 0) {
+          await new Promise<void>((r) => setTimeout(r, waitFor));
         }
-        if (!snapshot.width || !snapshot.height) {
-          lastFailureReason = `snapshot was ${snapshot.width}×${snapshot.height}`;
-          if (frames.length === 0) {
-            throw new Error("first frame produced 0×0 canvas");
+
+        // Composite: base image → each live WebGL canvas at its slot.
+        fctx.drawImage(baseSnapshot, 0, 0, width, height);
+        for (const o of overlays) {
+          try {
+            fctx.drawImage(o.canvas, o.dx, o.dy, o.dw, o.dh);
+          } catch {
+            // A live canvas can be 0×0 mid-resize; just skip the overlay
+            // for that frame rather than aborting the entire export.
           }
-          break;
         }
+        const imgData = fctx.getImageData(0, 0, width, height);
 
         const now = performance.now();
         const sinceLast = now - prevCaptureTime;
         prevCaptureTime = now;
 
-        cctx.fillStyle = "#FFFFFF";
-        cctx.fillRect(0, 0, width, height);
-        cctx.drawImage(snapshot, 0, 0, width, height);
-        const imgData = cctx.getImageData(0, 0, width, height);
-
         const delay =
-          frames.length === 0
-            ? 80
-            : Math.max(40, Math.min(Math.round(sinceLast), 400));
+          i === 0 ? 50 : Math.max(20, Math.min(Math.round(sinceLast), 200));
         frames.push({ data: imgData, delay });
-
-        const elapsed = now - sessionStart;
-        setProgress(Math.round((elapsed / duration) * 50));
-        if (elapsed >= duration) break;
-
-        // Clean up <style> nodes that html-to-image leaks into <head>
-        // between calls — without this, each subsequent toCanvas runs
-        // slower than the last and eventually hits the timeout.
-        document
-          .querySelectorAll('style[data-html2canvas-internal]')
-          .forEach((n) => n.remove());
-
-        // Wait for the browser to paint between captures so r3f /
-        // framer-motion advance pixels. 70ms ≈ 4 paint frames at 60fps,
-        // enough for visible movement. If frames come out identical the
-        // fingerprint sanity check below will surface it as an error
-        // before shipping a static GIF.
-        await waitForPaint(70);
+        setProgress(5 + Math.round((i / totalFrames) * 55));
       }
 
       if (frames.length < 2) {
-        const detail = lastFailureReason
-          ? ` (last failure: ${lastFailureReason})`
-          : "";
         throw new Error(
-          `only ${frames.length} frame(s) captured${detail}. Try reloading the slide.`
+          `only ${frames.length} frame(s) captured — try reloading the slide`
         );
       }
 
-      // Sanity check: if every captured frame fingerprints identically,
-      // the animations didn't advance during capture and the resulting
-      // GIF would be a static loop. Surface this loudly instead of
-      // shipping a broken file.
       const prints = frames.map((f) => fingerprint(f.data));
       const allSame = prints.every((p) => p === prints[0]);
       if (allSame) {
         throw new Error(
-          `captured ${frames.length} identical frames — animations did not advance. Check that the slide has motion (try slide 5, 7, or 9).`
+          `captured ${frames.length} identical frames — the 3D canvas isn't animating. Try advancing to another slide and back.`
         );
       }
-      console.log("GIF capture fingerprints:", prints);
-      setProgress(50);
+      console.log(
+        `captured ${frames.length} frames, ${
+          new Set(prints).size
+        } distinct, in ${Math.round(performance.now() - sessionStart)}ms`
+      );
+      setProgress(60);
 
-      // Phase 2: hand all captured frames to gif.js at once, then render.
       const GIF = (await import("gif.js.optimized")).default;
       const gif = new GIF({
         workers: 2,
-        quality: 20,
+        quality: 15,
         workerScript: "/gif.worker.js",
         width,
         height,
         background: "#FFFFFF",
       });
 
-      // gif.js.optimized accepts ImageData directly — no need to keep
-      // a live canvas around, which is what was making `copy: true`
-      // expensive in the previous version.
       for (const f of frames) {
-        // Cast: the optimized fork's types omit ImageData but the JS
-        // accepts it. Same path used by react-native-gif-encoder etc.
         gif.addFrame(f.data as unknown as CanvasRenderingContext2D, {
           delay: f.delay,
         });
       }
 
       gif.on("progress", (p: number) => {
-        setProgress(50 + Math.round(p * 50));
+        setProgress(60 + Math.round(p * 40));
       });
 
       await new Promise<void>((resolve, reject) => {
