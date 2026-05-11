@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { palette } from "@/lib/palette";
+import { r3 } from "@/lib/round";
 
 type ArrowFieldProps = {
   count?: number;
@@ -30,8 +31,14 @@ export function ArrowField({ count = 12, className }: ArrowFieldProps) {
         const a = (i / count) * Math.PI * 2 - Math.PI / 2;
         const isBest = i === bestIndex;
         const len = isBest ? r + 10 : r - 8;
-        const ex = cx + Math.cos(a) * len;
-        const ey = cy + Math.sin(a) * len;
+        const ex = r3(cx + Math.cos(a) * len);
+        const ey = r3(cy + Math.sin(a) * len);
+        const sx = r3(cx + Math.cos(a) * 12);
+        const sy = r3(cy + Math.sin(a) * 12);
+        const ax1 = r3(ex - Math.cos(a - 0.4) * 16);
+        const ay1 = r3(ey - Math.sin(a - 0.4) * 16);
+        const ax2 = r3(ex - Math.cos(a + 0.4) * 16);
+        const ay2 = r3(ey - Math.sin(a + 0.4) * 16);
         return (
           <motion.g
             key={i}
@@ -40,8 +47,8 @@ export function ArrowField({ count = 12, className }: ArrowFieldProps) {
             transition={{ duration: 0.5, delay: 0.05 * i }}
           >
             <line
-              x1={cx + Math.cos(a) * 12}
-              y1={cy + Math.sin(a) * 12}
+              x1={sx}
+              y1={sy}
               x2={ex}
               y2={ey}
               stroke={isBest ? palette.amber : palette.slate}
@@ -49,7 +56,7 @@ export function ArrowField({ count = 12, className }: ArrowFieldProps) {
               strokeLinecap="round"
             />
             <polygon
-              points={`${ex},${ey} ${ex - Math.cos(a - 0.4) * 16},${ey - Math.sin(a - 0.4) * 16} ${ex - Math.cos(a + 0.4) * 16},${ey - Math.sin(a + 0.4) * 16}`}
+              points={`${ex},${ey} ${ax1},${ay1} ${ax2},${ay2}`}
               fill={isBest ? palette.amber : palette.slate}
             />
           </motion.g>

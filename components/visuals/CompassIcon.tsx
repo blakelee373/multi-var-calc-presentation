@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { palette } from "@/lib/palette";
+import { r3 } from "@/lib/round";
 
 type CompassIconProps = {
   size?: number;
@@ -39,10 +40,10 @@ export function CompassIcon({
           return (
             <line
               key={i}
-              x1={60 + Math.cos(a) * r1}
-              y1={60 + Math.sin(a) * r1}
-              x2={60 + Math.cos(a) * r2}
-              y2={60 + Math.sin(a) * r2}
+              x1={r3(60 + Math.cos(a) * r1)}
+              y1={r3(60 + Math.sin(a) * r1)}
+              x2={r3(60 + Math.cos(a) * r2)}
+              y2={r3(60 + Math.sin(a) * r2)}
             />
           );
         })}
