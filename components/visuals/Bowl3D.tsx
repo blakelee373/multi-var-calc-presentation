@@ -67,6 +67,8 @@ function BowlContours() {
       const N = 96;
       for (let i = 0; i <= N; i++) {
         const t = (i / N) * Math.PI * 2;
+        // input (cos*r, sin*r) → after plane rotation [-π/2, 0, 0]:
+        // world (x, height, -y_input)
         ring.push(
           new THREE.Vector3(Math.cos(t) * r, level + 0.01, -Math.sin(t) * r)
         );
@@ -96,14 +98,12 @@ function Arrow({
   color,
   delay = 0.3,
   duration = 1.0,
-  onTop = false,
 }: {
   from: [number, number, number];
   to: [number, number, number];
   color: string;
   delay?: number;
   duration?: number;
-  onTop?: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const startRef = useRef<number | null>(null);
@@ -132,35 +132,22 @@ function Arrow({
     const p = Math.max(0, Math.min(1, t / duration));
     groupRef.current.scale.set(p, p, p);
   });
-  const renderOrder = onTop ? 10 : 0;
   return (
     <group ref={groupRef} position={from}>
-      <mesh
-        position={localMid.toArray()}
-        quaternion={quat}
-        renderOrder={renderOrder}
-      >
-        <cylinderGeometry args={[0.06, 0.06, Math.max(len - 0.22, 0.01), 16]} />
+      <mesh position={localMid.toArray()} quaternion={quat}>
+        <cylinderGeometry args={[0.07, 0.07, Math.max(len - 0.26, 0.01), 16]} />
         <meshStandardMaterial
           color={color}
           emissive={color}
-          emissiveIntensity={0.45}
-          depthTest={!onTop}
-          depthWrite={!onTop}
+          emissiveIntensity={0.5}
         />
       </mesh>
-      <mesh
-        position={localTip.toArray()}
-        quaternion={quat}
-        renderOrder={renderOrder}
-      >
-        <coneGeometry args={[0.14, 0.28, 20]} />
+      <mesh position={localTip.toArray()} quaternion={quat}>
+        <cylinderGeometry args={[0, 0.18, 0.32, 20]} />
         <meshStandardMaterial
           color={color}
           emissive={color}
-          emissiveIntensity={0.45}
-          depthTest={!onTop}
-          depthWrite={!onTop}
+          emissiveIntensity={0.5}
         />
       </mesh>
     </group>
@@ -176,47 +163,53 @@ function PulsePoint({ position }: { position: [number, number, number] }) {
   });
   return (
     <mesh ref={ref} position={position}>
-      <sphereGeometry args={[0.14, 24, 24]} />
+      <sphereGeometry args={[0.16, 24, 24]} />
       <meshStandardMaterial
         color={palette.ink}
         emissive={palette.amber}
-        emissiveIntensity={0.45}
+        emissiveIntensity={0.5}
       />
     </mesh>
   );
 }
 
 export function Bowl3D({ className }: { className?: string }) {
-  // Sample on the bowl's inner wall. After the 180° scene rotation, the
-  // sample sits on the front-facing wall and the gradient arrow extends
-  // toward the camera over the bowl rim — clearly readable.
-  const px = 0.6;
-  const py = 1.0;
+  // Camera looks down INTO the bowl from above-front. No group rotation —
+  // the previous 3π/2 spin (copied from Hill3D) was placing the sample
+  // behind the high corner rim, hiding it.
+  //
+  // Coordinate mapping (plane has local rotation -π/2 around X):
+  //   input (x, y) on plane → world (x, bowl(x,y), -y)
+  //
+  // Sample at input (1.0, -1.0) lands at world (1.0, 0.22, 1.0) — on the
+  // front-facing wall, closest to camera. Gradient ∇f = ⟨2x, 2y⟩ at that
+  // point is ⟨2, -2⟩ which in world coords points (+x, +z) = outward
+  // and toward the camera — fully visible above the rim of the bowl.
+  const px = 1.0;
+  const py = -1.0;
   const pz = bowl(px, py);
-  const ARROW_LIFT = 0.08;
   const here: [number, number, number] = [px, pz, -py];
-  const armOrigin: [number, number, number] = [px, pz + ARROW_LIFT, -py];
+
   const gx = 2 * px;
   const gy = 2 * py;
   const glen = Math.hypot(gx, gy);
   const ux = gx / glen;
   const uy = gy / glen;
-  const reach = 0.9;
-  // Arrow tip lifted clearly above the bowl wall in the gradient
-  // direction so the chord from sample-on-surface to tip stays above
-  // the rising wall over its full length.
+  const reach = 1.1;
   const tipPx = px + ux * reach;
   const tipPy = py + uy * reach;
+  // Lift the tip well above the surface at the destination so the chord
+  // from sample-on-surface to tip clears the rising bowl wall.
   const tip: [number, number, number] = [
     tipPx,
-    bowl(tipPx, tipPy) + 0.5,
+    bowl(tipPx, tipPy) + 0.55,
     -tipPy,
   ];
 
   return (
     <div className={className}>
       <Canvas
-        camera={{ position: [4.8, 4.0, 5.8], fov: 38 }}
+        camera={{ position: [4.2, 5.0, 5.4], fov: 38 }}
         style={{ width: "100%", height: "100%" }}
         gl={{ preserveDrawingBuffer: true, antialias: true }}
       >
@@ -225,12 +218,10 @@ export function Bowl3D({ className }: { className?: string }) {
         <directionalLight position={[6, 9, 4]} intensity={1.3} />
         <directionalLight position={[-4, 3, -5]} intensity={0.3} color="#BFDBFE" />
 
-        <group rotation={[0, (3 * Math.PI) / 2, 0]}>
-          <Bowl />
-          <BowlContours />
-          <PulsePoint position={here} />
-          <Arrow from={here} to={tip} color={palette.amber} />
-        </group>
+        <Bowl />
+        <BowlContours />
+        <PulsePoint position={here} />
+        <Arrow from={here} to={tip} color={palette.amber} />
       </Canvas>
     </div>
   );

@@ -7,7 +7,6 @@ type ExportGifButtonProps = {
   targetRef: RefObject<HTMLElement | null>;
   filename: string;
   duration?: number;
-  fps?: number;
   width?: number;
   onPrepare?: () => Promise<void> | void;
 };
@@ -16,8 +15,7 @@ export function ExportGifButton({
   targetRef,
   filename,
   duration = 3500,
-  fps = 12,
-  width = 1280,
+  width = 960,
   onPrepare,
 }: ExportGifButtonProps) {
   const [busy, setBusy] = useState(false);
@@ -41,12 +39,8 @@ export function ExportGifButton({
         );
       }
       const height = Math.round(width * (rect.height / rect.width));
-      const totalFrames = Math.max(2, Math.round((duration / 1000) * fps));
-      const frameDelay = Math.round(1000 / fps);
       const pixelRatio = width / rect.width;
 
-      // Confirm the worker script is actually reachable before kicking off
-      // gif.js — otherwise the error is silent inside the worker.
       const workerOk = await fetch("/gif.worker.js", { method: "HEAD" })
         .then((r) => r.ok)
         .catch(() => false);
@@ -56,12 +50,17 @@ export function ExportGifButton({
 
       const GIF = (await import("gif.js.optimized")).default;
       const gif = new GIF({
-        workers: 2,
-        quality: 10,
+        // More workers = parallel encoding = faster final assembly.
+        workers: 4,
+        // Higher number = lower quality but much faster encoding. 20 is
+        // a good balance for slide animations (mostly flat colors).
+        quality: 20,
         workerScript: "/gif.worker.js",
         width,
         height,
         background: "#FFFFFF",
+        // dither: false would be faster but the gif.js typedef doesn't
+        // accept it via TS without a cast — default is fine here.
       });
 
       const off = document.createElement("canvas");
@@ -70,16 +69,20 @@ export function ExportGifButton({
       const octx = off.getContext("2d");
       if (!octx) throw new Error("could not create offscreen canvas");
 
+      // Capture as fast as the browser can paint and toCanvas can serialize.
+      // For each frame, record REAL elapsed wall-time since the previous
+      // frame and pass it to gif.addFrame as the GIF delay. This keeps
+      // playback at the same speed as the live animation — the prior
+      // fixed-83ms-delay approach made GIFs play ~3-4× too fast because
+      // toCanvas alone takes ~300ms per frame on a slide with WebGL.
       let capturedFrames = 0;
-      const start = performance.now();
-      for (let i = 0; i < totalFrames; i++) {
-        const target = start + (i / (totalFrames - 1)) * duration;
-        const wait = target - performance.now();
-        if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      const sessionStart = performance.now();
+      let prevCaptureTime = sessionStart;
+      // Soft cap: never more than this many frames even if duration drifts.
+      // 30 frames × ~250ms = ~7.5s worst-case capture window.
+      const MAX_FRAMES = 30;
 
-        // toCanvas returns a real HTMLCanvasElement so we skip the
-        // dataURL → Image decode round-trip that was failing on frame 2
-        // when html-to-image embedded a WebGL canvas as a giant data URL.
+      while (capturedFrames < MAX_FRAMES) {
         let snapshot: HTMLCanvasElement;
         try {
           snapshot = await toCanvas(node, {
@@ -88,21 +91,33 @@ export function ExportGifButton({
             backgroundColor: "#FFFFFF",
           });
         } catch (e) {
-          console.warn(`frame ${i} snapshot failed, skipping`, e);
+          console.warn(`frame ${capturedFrames} snapshot failed, skipping`, e);
           continue;
         }
         if (!snapshot.width || !snapshot.height) {
           console.warn(
-            `frame ${i} produced ${snapshot.width}x${snapshot.height} canvas, skipping`
+            `frame ${capturedFrames} produced ${snapshot.width}x${snapshot.height} canvas, skipping`
           );
           continue;
         }
+
+        const now = performance.now();
+        const sinceLast = now - prevCaptureTime;
+        prevCaptureTime = now;
+
         octx.fillStyle = "#FFFFFF";
         octx.fillRect(0, 0, width, height);
         octx.drawImage(snapshot, 0, 0, width, height);
-        gif.addFrame(octx, { delay: frameDelay, copy: true });
+        // First frame's delay = small (it's the entry frame). Subsequent
+        // frames use the real elapsed time since the previous capture,
+        // clamped so a slow first frame doesn't turn into a long pause.
+        const delay =
+          capturedFrames === 0 ? 60 : Math.max(40, Math.min(sinceLast, 400));
+        gif.addFrame(octx, { delay, copy: true });
         capturedFrames++;
-        setProgress(Math.round(((i + 1) / totalFrames) * 70));
+        const elapsed = now - sessionStart;
+        setProgress(Math.round((elapsed / duration) * 60));
+        if (elapsed >= duration) break;
       }
       if (capturedFrames === 0) {
         throw new Error(
@@ -111,7 +126,7 @@ export function ExportGifButton({
       }
 
       gif.on("progress", (p: number) => {
-        setProgress(70 + Math.round(p * 30));
+        setProgress(60 + Math.round(p * 40));
       });
 
       await new Promise<void>((resolve, reject) => {

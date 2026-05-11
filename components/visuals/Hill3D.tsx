@@ -257,14 +257,14 @@ export function Hill3D({ mode, className, interactive = false }: Hill3DProps) {
   const LEN = 1.2;
   const fxTip: [number, number, number] = [px + LEN, Yarrow, -py];
   const fyTip: [number, number, number] = [px, Yarrow, -(py + LEN)];
-  // Gradient arrow climbs up the hill: tip is placed clearly ABOVE the
-  // surface in the gradient direction so the chord between
-  // sample-on-surface and tip stays visible over the rising terrain.
-  const gradTipX = px + ugx * LEN;
-  const gradTipY = py + ugy * LEN;
+  // Shorter gradient arrow so it doesn't shoot past the peak. Tip sits
+  // a small margin above the surface at the shortened reach point.
+  const LEN_GRAD = 0.55;
+  const gradTipX = px + ugx * LEN_GRAD;
+  const gradTipY = py + ugy * LEN_GRAD;
   const gradTip: [number, number, number] = [
     gradTipX,
-    f(gradTipX, gradTipY) + 0.5,
+    f(gradTipX, gradTipY) + 0.18,
     -gradTipY,
   ];
 
