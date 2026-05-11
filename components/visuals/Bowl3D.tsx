@@ -221,10 +221,14 @@ export function Bowl3D({ className }: { className?: string }) {
         <directionalLight position={[6, 9, 4]} intensity={1.3} />
         <directionalLight position={[-4, 3, -5]} intensity={0.3} color="#BFDBFE" />
 
-        <Bowl />
-        <BowlContours />
-        <PulsePoint position={here} />
-        <Arrow from={here} to={tip} color={palette.amber} />
+        {/* Shift the entire scene down so the bowl sits centered
+            vertically in the frame instead of riding the top edge. */}
+        <group position={[0, -0.9, 0]}>
+          <Bowl />
+          <BowlContours />
+          <PulsePoint position={here} />
+          <Arrow from={here} to={tip} color={palette.amber} />
+        </group>
       </Canvas>
     </div>
   );
