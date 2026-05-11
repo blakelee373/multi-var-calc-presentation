@@ -11,6 +11,32 @@ type ExportGifButtonProps = {
   onPrepare?: () => Promise<void> | void;
 };
 
+// Wait up to `ms` for `p` to settle. If it doesn't, reject so the
+// caller can decide whether to retry or abort. Without this guard,
+// html-to-image can hang silently when it races a WebGL repaint and
+// the export loop appears "stuck at 3%".
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms
+    );
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
+const nextFrame = () =>
+  new Promise<void>((r) => requestAnimationFrame(() => r()));
+
 export function ExportGifButton({
   targetRef,
   filename,
@@ -48,85 +74,112 @@ export function ExportGifButton({
         throw new Error("GIF worker missing at /gif.worker.js");
       }
 
-      const GIF = (await import("gif.js.optimized")).default;
-      const gif = new GIF({
-        // More workers = parallel encoding = faster final assembly.
-        workers: 4,
-        // Higher number = lower quality but much faster encoding. 20 is
-        // a good balance for slide animations (mostly flat colors).
-        quality: 20,
-        workerScript: "/gif.worker.js",
-        width,
-        height,
-        background: "#FFFFFF",
-        // dither: false would be faster but the gif.js typedef doesn't
-        // accept it via TS without a cast — default is fine here.
-      });
+      // Phase 1: capture frames into ImageData buffers.
+      //
+      // We CANNOT call gif.addFrame inside the capture loop — gif.js
+      // workers start encoding immediately and compete with toCanvas
+      // for main-thread time, which is what was causing the "stuck at
+      // 3%" hang. Decoupling capture from encoding fixes this and
+      // also lets us yield to the browser via rAF between frames so
+      // framer-motion / r3f animations have time to advance.
+      const captureCanvas = document.createElement("canvas");
+      captureCanvas.width = width;
+      captureCanvas.height = height;
+      const cctx = captureCanvas.getContext("2d");
+      if (!cctx) throw new Error("could not create capture canvas");
 
-      const off = document.createElement("canvas");
-      off.width = width;
-      off.height = height;
-      const octx = off.getContext("2d");
-      if (!octx) throw new Error("could not create offscreen canvas");
-
-      // Capture as fast as the browser can paint and toCanvas can serialize.
-      // For each frame, record REAL elapsed wall-time since the previous
-      // frame and pass it to gif.addFrame as the GIF delay. This keeps
-      // playback at the same speed as the live animation — the prior
-      // fixed-83ms-delay approach made GIFs play ~3-4× too fast because
-      // toCanvas alone takes ~300ms per frame on a slide with WebGL.
-      let capturedFrames = 0;
+      type Frame = { data: ImageData; delay: number };
+      const frames: Frame[] = [];
+      const MAX_FRAMES = 24;
       const sessionStart = performance.now();
       let prevCaptureTime = sessionStart;
-      // Soft cap: never more than this many frames even if duration drifts.
-      // 30 frames × ~250ms = ~7.5s worst-case capture window.
-      const MAX_FRAMES = 30;
 
-      while (capturedFrames < MAX_FRAMES) {
+      while (frames.length < MAX_FRAMES) {
+        // Per-frame timeout — 2s is generous; toCanvas of a slide is
+        // typically 100-300ms. If we exceed this, something's wrong
+        // (lost WebGL context, etc) and we should surface it instead
+        // of looping silently.
         let snapshot: HTMLCanvasElement;
         try {
-          snapshot = await toCanvas(node, {
-            pixelRatio,
-            cacheBust: false,
-            backgroundColor: "#FFFFFF",
-          });
+          snapshot = await withTimeout(
+            toCanvas(node, {
+              pixelRatio,
+              cacheBust: false,
+              backgroundColor: "#FFFFFF",
+            }),
+            2000,
+            `frame ${frames.length} capture`
+          );
         } catch (e) {
-          console.warn(`frame ${capturedFrames} snapshot failed, skipping`, e);
-          continue;
+          // If the very first frame fails, give up. If a later frame
+          // fails, we still have what we have and can encode it.
+          if (frames.length === 0) throw e;
+          console.warn("frame capture failed mid-loop, stopping early", e);
+          break;
         }
         if (!snapshot.width || !snapshot.height) {
-          console.warn(
-            `frame ${capturedFrames} produced ${snapshot.width}x${snapshot.height} canvas, skipping`
-          );
-          continue;
+          if (frames.length === 0) {
+            throw new Error("first frame produced 0×0 canvas");
+          }
+          break;
         }
 
         const now = performance.now();
         const sinceLast = now - prevCaptureTime;
         prevCaptureTime = now;
 
-        octx.fillStyle = "#FFFFFF";
-        octx.fillRect(0, 0, width, height);
-        octx.drawImage(snapshot, 0, 0, width, height);
-        // First frame's delay = small (it's the entry frame). Subsequent
-        // frames use the real elapsed time since the previous capture,
-        // clamped so a slow first frame doesn't turn into a long pause.
+        cctx.fillStyle = "#FFFFFF";
+        cctx.fillRect(0, 0, width, height);
+        cctx.drawImage(snapshot, 0, 0, width, height);
+        const imgData = cctx.getImageData(0, 0, width, height);
+
         const delay =
-          capturedFrames === 0 ? 60 : Math.max(40, Math.min(sinceLast, 400));
-        gif.addFrame(octx, { delay, copy: true });
-        capturedFrames++;
+          frames.length === 0
+            ? 80
+            : Math.max(40, Math.min(Math.round(sinceLast), 400));
+        frames.push({ data: imgData, delay });
+
         const elapsed = now - sessionStart;
-        setProgress(Math.round((elapsed / duration) * 60));
+        setProgress(Math.round((elapsed / duration) * 50));
         if (elapsed >= duration) break;
+
+        // Yield so framer-motion / r3f can advance their clocks before
+        // the next capture. Without this, toCanvas would capture the
+        // same frame over and over (animations frozen behind the loop).
+        await nextFrame();
       }
-      if (capturedFrames === 0) {
+
+      if (frames.length < 2) {
         throw new Error(
-          "no frames captured — try refreshing the page or check the console"
+          `only ${frames.length} frame(s) captured — animations may not be running. Try reloading the slide.`
         );
+      }
+      setProgress(50);
+
+      // Phase 2: hand all captured frames to gif.js at once, then render.
+      const GIF = (await import("gif.js.optimized")).default;
+      const gif = new GIF({
+        workers: 2,
+        quality: 20,
+        workerScript: "/gif.worker.js",
+        width,
+        height,
+        background: "#FFFFFF",
+      });
+
+      // gif.js.optimized accepts ImageData directly — no need to keep
+      // a live canvas around, which is what was making `copy: true`
+      // expensive in the previous version.
+      for (const f of frames) {
+        // Cast: the optimized fork's types omit ImageData but the JS
+        // accepts it. Same path used by react-native-gif-encoder etc.
+        gif.addFrame(f.data as unknown as CanvasRenderingContext2D, {
+          delay: f.delay,
+        });
       }
 
       gif.on("progress", (p: number) => {
-        setProgress(60 + Math.round(p * 40));
+        setProgress(50 + Math.round(p * 50));
       });
 
       await new Promise<void>((resolve, reject) => {
