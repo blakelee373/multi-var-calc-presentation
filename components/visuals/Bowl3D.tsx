@@ -132,23 +132,29 @@ function Arrow({
     const p = Math.max(0, Math.min(1, t / duration));
     groupRef.current.scale.set(p, p, p);
   });
+  // The bowl is convex outward, so any straight chord between two surface
+  // points sits BELOW the rising rim along its full length. To guarantee
+  // the arrow is visible regardless of where the sample sits on the
+  // wall, render it on top of everything via depth-test off + high
+  // renderOrder. This is the standard "X-ray annotation" approach for
+  // showing gradient vectors on surfaces.
   return (
     <group ref={groupRef} position={from}>
-      <mesh position={localMid.toArray()} quaternion={quat}>
-        <cylinderGeometry args={[0.07, 0.07, Math.max(len - 0.26, 0.01), 16]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={0.5}
-        />
+      <mesh
+        position={localMid.toArray()}
+        quaternion={quat}
+        renderOrder={20}
+      >
+        <cylinderGeometry args={[0.075, 0.075, Math.max(len - 0.3, 0.01), 16]} />
+        <meshBasicMaterial color={color} depthTest={false} depthWrite={false} />
       </mesh>
-      <mesh position={localTip.toArray()} quaternion={quat}>
-        <cylinderGeometry args={[0, 0.18, 0.32, 20]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={0.5}
-        />
+      <mesh
+        position={localTip.toArray()}
+        quaternion={quat}
+        renderOrder={21}
+      >
+        <cylinderGeometry args={[0, 0.2, 0.36, 20]} />
+        <meshBasicMaterial color={color} depthTest={false} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -174,18 +180,14 @@ function PulsePoint({ position }: { position: [number, number, number] }) {
 }
 
 export function Bowl3D({ className }: { className?: string }) {
-  // Camera looks down INTO the bowl from above-front. No group rotation —
-  // the previous 3π/2 spin (copied from Hill3D) was placing the sample
-  // behind the high corner rim, hiding it.
-  //
   // Coordinate mapping (plane has local rotation -π/2 around X):
   //   input (x, y) on plane → world (x, bowl(x,y), -y)
   //
-  // Sample at input (1.0, -1.0) lands at world (1.0, 0.22, 1.0) — on the
-  // front-facing wall, closest to camera. Gradient ∇f = ⟨2x, 2y⟩ at that
-  // point is ⟨2, -2⟩ which in world coords points (+x, +z) = outward
-  // and toward the camera — fully visible above the rim of the bowl.
-  const px = 1.0;
+  // Sample at input (-1.0, -1.0) lands at world (-1.0, 0.22, 1.0) — on
+  // the front-LEFT wall, closest to camera. Gradient ∇f = ⟨2x, 2y⟩ at
+  // that point is ⟨-2, -2⟩, which in world coords points (-x, +z) =
+  // outward and toward the camera's bottom-left in screen space.
+  const px = -1.0;
   const py = -1.0;
   const pz = bowl(px, py);
   const here: [number, number, number] = [px, pz, -py];
@@ -195,14 +197,15 @@ export function Bowl3D({ className }: { className?: string }) {
   const glen = Math.hypot(gx, gy);
   const ux = gx / glen;
   const uy = gy / glen;
-  const reach = 1.1;
+  const reach = 1.0;
   const tipPx = px + ux * reach;
   const tipPy = py + uy * reach;
-  // Lift the tip well above the surface at the destination so the chord
-  // from sample-on-surface to tip clears the rising bowl wall.
+  // Tip lift is generous so even if the chord weren't depth-test-off,
+  // it would still clear the rim. With depthTest=false on the arrow
+  // material it's belt-and-suspenders.
   const tip: [number, number, number] = [
     tipPx,
-    bowl(tipPx, tipPy) + 0.55,
+    bowl(tipPx, tipPy) + 0.7,
     -tipPy,
   ];
 
