@@ -10,10 +10,7 @@ type SlideFrameProps = {
 };
 
 export const SlideFrame = forwardRef<HTMLDivElement, SlideFrameProps>(
-  function SlideFrame(
-    { slideNumber, totalSlides, sectionLabel, children },
-    ref
-  ) {
+  function SlideFrame({ slideNumber, children }, ref) {
     return (
       <div
         ref={ref}
@@ -27,23 +24,8 @@ export const SlideFrame = forwardRef<HTMLDivElement, SlideFrameProps>(
           border: "1px solid #E2D9C2",
         }}
       >
-        <div className="absolute inset-0 px-16 pt-12 pb-12 flex flex-col">
+        <div className="absolute inset-0 px-16 pt-14 pb-14 flex flex-col">
           {children}
-        </div>
-
-        {/* footer rule */}
-        <div className="absolute bottom-0 left-16 right-16 h-px bg-[#E2D9C2]" />
-
-        {/* footer text */}
-        <div className="absolute bottom-3 left-16 right-16 flex items-center justify-between text-[11px] uppercase tracking-[0.22em] text-ink/45 font-semibold">
-          <span>Multivariable Calculus · The Gradient</span>
-          {sectionLabel ? (
-            <span className="text-ink/55">{sectionLabel}</span>
-          ) : null}
-          <span>
-            {String(slideNumber).padStart(2, "0")} ·{" "}
-            <span className="opacity-50">{String(totalSlides).padStart(2, "0")}</span>
-          </span>
         </div>
       </div>
     );

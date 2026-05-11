@@ -149,6 +149,8 @@ function Arrow({
   thickness = 0.05,
   headSize = 0.22,
   emissive = false,
+  delay = 0,
+  duration = 0.9,
 }: {
   from: [number, number, number];
   to: [number, number, number];
@@ -156,21 +158,42 @@ function Arrow({
   thickness?: number;
   headSize?: number;
   emissive?: boolean;
+  delay?: number;
+  duration?: number;
 }) {
-  const v1 = new THREE.Vector3(...from);
-  const v2 = new THREE.Vector3(...to);
-  const dir = v2.clone().sub(v1);
-  const len = dir.length();
+  const groupRef = useRef<THREE.Group>(null);
+  const startRef = useRef<number | null>(null);
+
+  const { mid, len, quat, localMid, localTip } = useMemo(() => {
+    const v1 = new THREE.Vector3(...from);
+    const v2 = new THREE.Vector3(...to);
+    const d = v2.clone().sub(v1);
+    const l = d.length();
+    const m = v1.clone().add(d.clone().multiplyScalar(0.5));
+    const up = new THREE.Vector3(0, 1, 0);
+    const q = new THREE.Quaternion().setFromUnitVectors(up, d.clone().normalize());
+    return {
+      mid: m,
+      len: l,
+      quat: q,
+      localMid: m.clone().sub(v1),
+      localTip: v2.clone().sub(v1),
+    };
+  }, [from, to]);
+
+  useFrame(({ clock }) => {
+    if (!groupRef.current) return;
+    if (startRef.current == null) startRef.current = clock.elapsedTime;
+    const t = clock.elapsedTime - startRef.current - delay;
+    const p = Math.max(0, Math.min(1, t / duration));
+    groupRef.current.scale.set(p, p, p);
+  });
+
   if (len < 0.001) return null;
-  const mid = v1.clone().add(dir.clone().multiplyScalar(0.5));
-  const up = new THREE.Vector3(0, 1, 0);
-  const quat = new THREE.Quaternion().setFromUnitVectors(
-    up,
-    dir.clone().normalize()
-  );
+
   return (
-    <group>
-      <mesh position={mid.toArray()} quaternion={quat}>
+    <group ref={groupRef} position={from}>
+      <mesh position={localMid.toArray()} quaternion={quat}>
         <cylinderGeometry
           args={[thickness, thickness, Math.max(len - headSize, 0.01), 16]}
         />
@@ -181,7 +204,7 @@ function Arrow({
           roughness={0.45}
         />
       </mesh>
-      <mesh position={v2.toArray()} quaternion={quat}>
+      <mesh position={localTip.toArray()} quaternion={quat}>
         <coneGeometry args={[headSize * 0.55, headSize, 20]} />
         <meshStandardMaterial
           color={color}
@@ -190,6 +213,8 @@ function Arrow({
           roughness={0.45}
         />
       </mesh>
+      {/* avoid unused-var TS warning for mid */}
+      <group visible={false} position={mid.toArray()} />
     </group>
   );
 }
@@ -198,27 +223,54 @@ function AxisLabel({
   position,
   text,
   color,
+  size = 1.1,
 }: {
   position: [number, number, number];
   text: string;
   color: string;
+  size?: number;
 }) {
   const ref = useRef<THREE.Mesh>(null);
   useFrame(({ camera }) => {
     if (ref.current) ref.current.lookAt(camera.position);
   });
   const canvas = useMemo(() => {
+    const W = 512;
+    const H = 256;
     const c = document.createElement("canvas");
-    c.width = 256;
-    c.height = 256;
+    c.width = W;
+    c.height = H;
     const ctx = c.getContext("2d");
     if (ctx) {
-      ctx.clearRect(0, 0, 256, 256);
+      ctx.clearRect(0, 0, W, H);
+      // pill background
+      const r = 60;
+      const x = 8;
+      const y = 8;
+      const w = W - 16;
+      const h = H - 16;
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.arc(x + w - r, y + r, r, -Math.PI / 2, 0);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.arc(x + w - r, y + h - r, r, 0, Math.PI / 2);
+      ctx.lineTo(x + r, y + h);
+      ctx.arc(x + r, y + h - r, r, Math.PI / 2, Math.PI);
+      ctx.lineTo(x, y + r);
+      ctx.arc(x + r, y + r, r, Math.PI, -Math.PI / 2);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(255, 252, 244, 0.96)";
+      ctx.fill();
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = color;
+      ctx.stroke();
+      // text
       ctx.fillStyle = color;
-      ctx.font = "bold 156px Inter, system-ui, sans-serif";
+      ctx.font = "bold 168px ui-sans-serif, system-ui, Inter, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(text, 128, 128);
+      ctx.fillText(text, W / 2, H / 2 + 6);
     }
     return c;
   }, [color, text]);
@@ -229,8 +281,8 @@ function AxisLabel({
   }, [canvas]);
   return (
     <mesh ref={ref} position={position}>
-      <planeGeometry args={[0.55, 0.55]} />
-      <meshBasicMaterial map={texture} transparent />
+      <planeGeometry args={[size * 2, size]} />
+      <meshBasicMaterial map={texture} transparent depthTest={false} />
     </mesh>
   );
 }
@@ -388,71 +440,92 @@ export function Hill3D({
             </>
           )}
 
-          {/* PARTIALS: flat +x and +y arrows with labels */}
+          {/* PARTIALS: flat +x and +y arrows with prominent labels */}
           {mode === "partials" && (
             <>
               <Arrow
                 from={lifted}
                 to={fxTip}
                 color={palette.teal}
-                thickness={0.055}
-                headSize={0.24}
+                thickness={0.06}
+                headSize={0.26}
                 emissive
+                delay={0.3}
               />
               <AxisLabel
-                position={[fxTip[0] + 0.35, fxTip[1] + 0.15, fxTip[2]]}
-                text="x"
+                position={[fxTip[0] + 0.55, fxTip[1] + 0.45, fxTip[2]]}
+                text="fx"
                 color={palette.teal}
+                size={1.0}
               />
               <Arrow
                 from={lifted}
                 to={fyTip}
                 color="#0F766E"
-                thickness={0.055}
-                headSize={0.24}
+                thickness={0.06}
+                headSize={0.26}
                 emissive
+                delay={1.0}
               />
               <AxisLabel
-                position={[fyTip[0], fyTip[1] + 0.15, fyTip[2] - 0.35]}
-                text="y"
+                position={[fyTip[0], fyTip[1] + 0.45, fyTip[2] - 0.55]}
+                text="fy"
                 color="#0F766E"
+                size={1.0}
               />
             </>
           )}
 
-          {/* GRADIENT: partials + the combined ∇f arrow */}
+          {/* GRADIENT: both partials + the combined ∇f arrow, all labelled */}
           {mode === "gradient" && (
             <>
               <Arrow
                 from={lifted}
-                to={[px + LEN * 0.6, lifted[1], -py]}
+                to={[px + LEN * 0.65, lifted[1], -py]}
                 color={palette.teal}
-                thickness={0.035}
-                headSize={0.16}
+                thickness={0.04}
+                headSize={0.18}
+                delay={0.3}
+              />
+              <AxisLabel
+                position={[px + LEN * 0.65 + 0.5, lifted[1] + 0.45, -py]}
+                text="fx"
+                color={palette.teal}
+                size={0.9}
               />
               <Arrow
                 from={lifted}
-                to={[px, lifted[1], -(py + LEN * 0.6)]}
+                to={[px, lifted[1], -(py + LEN * 0.65)]}
                 color="#0F766E"
-                thickness={0.035}
-                headSize={0.16}
+                thickness={0.04}
+                headSize={0.18}
+                delay={1.0}
+              />
+              <AxisLabel
+                position={[px, lifted[1] + 0.45, -(py + LEN * 0.65) - 0.5]}
+                text="fy"
+                color="#0F766E"
+                size={0.9}
               />
               <Arrow
                 from={lifted}
                 to={gradTip}
                 color={palette.amber}
-                thickness={0.06}
-                headSize={0.28}
+                thickness={0.065}
+                headSize={0.3}
                 emissive
+                delay={1.7}
+                duration={1.0}
               />
               <AxisLabel
                 position={[
-                  gradTip[0] + ugx * 0.35,
-                  gradTip[1] + 0.18,
-                  gradTip[2] - ugy * 0.35,
+                  gradTip[0] + ugx * 0.6,
+                  gradTip[1] + 0.55,
+                  gradTip[2] - ugy * 0.6,
                 ]}
-                text="∇"
+                text="∇f"
                 color={palette.amber}
+                size={1.1}
               />
             </>
           )}

@@ -6,37 +6,40 @@ import { useState, type RefObject } from "react";
 type ExportGifButtonProps = {
   targetRef: RefObject<HTMLElement | null>;
   filename: string;
-  // Total duration in ms
   duration?: number;
-  // Frames per second
   fps?: number;
-  // Output width (height inferred from aspect ratio of the source node)
   width?: number;
+  /** Called before capture starts. Use to remount the slide so
+   * animations replay during recording. */
+  onPrepare?: () => Promise<void> | void;
 };
 
 export function ExportGifButton({
   targetRef,
   filename,
-  duration = 3000,
+  duration = 3500,
   fps = 12,
   width = 1280,
+  onPrepare,
 }: ExportGifButtonProps) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
 
   async function handleExport() {
-    if (!targetRef.current || busy) return;
+    if (busy) return;
     setBusy(true);
     setProgress(0);
     try {
+      if (onPrepare) await onPrepare();
       const node = targetRef.current;
+      if (!node) return;
+
       const rect = node.getBoundingClientRect();
       const height = Math.round(width * (rect.height / rect.width));
       const totalFrames = Math.max(2, Math.round((duration / 1000) * fps));
       const frameDelay = Math.round(1000 / fps);
       const pixelRatio = width / rect.width;
 
-      // Dynamic import so SSR is happy
       const GIF = (await import("gif.js.optimized")).default;
       const gif = new GIF({
         workers: 2,
@@ -47,8 +50,15 @@ export function ExportGifButton({
         background: "#FFFFFF",
       });
 
-      // Capture frames over the duration in real time so looping
-      // animations show actual motion in the GIF.
+      // Use a single offscreen canvas as the addFrame target, with
+      // copy:true so gif.js takes a snapshot of pixels every frame
+      // instead of holding a reference that could mutate later.
+      const off = document.createElement("canvas");
+      off.width = width;
+      off.height = height;
+      const octx = off.getContext("2d");
+      if (!octx) throw new Error("canvas 2d unavailable");
+
       const start = performance.now();
       for (let i = 0; i < totalFrames; i++) {
         const target = start + (i / (totalFrames - 1)) * duration;
@@ -57,7 +67,7 @@ export function ExportGifButton({
 
         const dataUrl = await toPng(node, {
           pixelRatio,
-          cacheBust: false,
+          cacheBust: true,
           backgroundColor: "#FFFFFF",
         });
         const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -66,8 +76,11 @@ export function ExportGifButton({
           im.onerror = reject;
           im.src = dataUrl;
         });
-        gif.addFrame(img, { delay: frameDelay });
-        setProgress(Math.round(((i + 1) / totalFrames) * 70)); // capture is 70%
+        octx.fillStyle = "#FFFFFF";
+        octx.fillRect(0, 0, width, height);
+        octx.drawImage(img, 0, 0, width, height);
+        gif.addFrame(octx, { delay: frameDelay, copy: true });
+        setProgress(Math.round(((i + 1) / totalFrames) * 70));
       }
 
       gif.on("progress", (p: number) => {
@@ -97,7 +110,7 @@ export function ExportGifButton({
       type="button"
       onClick={handleExport}
       disabled={busy}
-      title="Captures ~3 seconds of the slide at 12fps and saves as a single GIF. Insert it into Google Slides via Insert › Image."
+      title="Restarts the slide's animations and records ~3.5 seconds as a GIF. Insert into Google Slides via Insert › Image."
       className="px-3 py-1.5 rounded-md text-xs font-medium bg-paper border border-[#E5DCC4] text-ink hover:bg-ink/5 disabled:opacity-50 transition"
     >
       {busy ? `Recording GIF… ${progress}%` : "Download GIF"}

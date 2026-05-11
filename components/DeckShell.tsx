@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { SlideFrame } from "./SlideFrame";
 import { ExportButton } from "./ExportButton";
@@ -10,6 +11,7 @@ import { slides } from "@/app/slides";
 export function DeckShell() {
   const total = slides.length;
   const [index, setIndex] = useState(0);
+  const [restartKey, setRestartKey] = useState(0);
   const [railOpen, setRailOpen] = useState(false);
   const slideRef = useRef<HTMLDivElement>(null);
 
@@ -53,9 +55,21 @@ export function DeckShell() {
   const Active = useMemo(() => slides[index].Component, [index]);
   const meta = slides[index];
 
+  // Called before GIF capture starts. Forces the slide to remount via
+  // flushSync so framer-motion entrance animations and r3f arrow growth
+  // replay from t=0 during the capture window.
+  const prepareForGif = useCallback(async () => {
+    flushSync(() => setRestartKey((k) => k + 1));
+    // Two rAFs then a small buffer so the new tree paints and r3f draws
+    // at least one warm-up frame before the first capture lands.
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
+    await new Promise<void>((resolve) => setTimeout(resolve, 80));
+  }, []);
+
   return (
     <div className="flex-1 flex items-center justify-center relative px-4 py-6">
-      {/* Top controls */}
       <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-3 z-20">
         <button
           type="button"
@@ -68,6 +82,7 @@ export function DeckShell() {
           <ExportGifButton
             targetRef={slideRef}
             filename={`slide-${String(index + 1).padStart(2, "0")}-${meta.slug}.gif`}
+            onPrepare={prepareForGif}
           />
           <ExportButton
             targetRef={slideRef}
@@ -76,10 +91,9 @@ export function DeckShell() {
         </div>
       </div>
 
-      {/* Slide */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={index}
+          key={`${index}-${restartKey}`}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -12 }}
@@ -97,7 +111,6 @@ export function DeckShell() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Bottom progress + arrows */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-20">
         <button
           type="button"
@@ -110,7 +123,7 @@ export function DeckShell() {
         </button>
         <div className="w-48 h-1.5 rounded-full bg-slate-200 overflow-hidden">
           <div
-            className="h-full bg-amber transition-all"
+            className="h-full bg-ink/60 transition-all"
             style={{ width: `${((index + 1) / total) * 100}%` }}
           />
         </div>
@@ -125,7 +138,6 @@ export function DeckShell() {
         </button>
       </div>
 
-      {/* Side rail */}
       {railOpen && (
         <aside className="absolute top-16 left-4 bottom-16 w-64 bg-paper border border-slate-200 rounded-xl shadow-lg overflow-y-auto z-30">
           <ol className="p-2">
@@ -139,7 +151,7 @@ export function DeckShell() {
                   }}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm transition ${
                     i === index
-                      ? "bg-amber/15 text-ink font-semibold"
+                      ? "bg-ink/8 text-ink font-semibold"
                       : "hover:bg-ink/5 text-ink/80"
                   }`}
                 >

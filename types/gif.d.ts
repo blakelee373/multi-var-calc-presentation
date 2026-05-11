@@ -13,7 +13,14 @@ declare module "gif.js.optimized" {
 
   class GIF {
     constructor(opts: GIFOptions);
-    addFrame(image: CanvasImageSource, opts?: FrameOptions): void;
+    addFrame(
+      image:
+        | CanvasImageSource
+        | CanvasRenderingContext2D
+        | WebGLRenderingContext
+        | ImageData,
+      opts?: FrameOptions
+    ): void;
     on(event: "finished", cb: (blob: Blob) => void): void;
     on(event: "progress", cb: (p: number) => void): void;
     on(event: "abort", cb: () => void): void;

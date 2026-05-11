@@ -1,7 +1,7 @@
 "use client";
 
-import { Canvas } from "@react-three/fiber";
-import { useMemo } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { palette } from "@/lib/palette";
 
@@ -88,28 +88,49 @@ function Arrow({
   from,
   to,
   color,
+  delay = 0.4,
+  duration = 1.1,
 }: {
   from: [number, number, number];
   to: [number, number, number];
   color: string;
+  delay?: number;
+  duration?: number;
 }) {
-  const v1 = new THREE.Vector3(...from);
-  const v2 = new THREE.Vector3(...to);
-  const dir = v2.clone().sub(v1);
-  const len = dir.length();
-  const mid = v1.clone().add(dir.clone().multiplyScalar(0.5));
-  const up = new THREE.Vector3(0, 1, 0);
-  const quat = new THREE.Quaternion().setFromUnitVectors(
-    up,
-    dir.clone().normalize()
-  );
+  const groupRef = useRef<THREE.Group>(null);
+  const startRef = useRef<number | null>(null);
+  const { len, quat, localMid, localTip } = useMemo(() => {
+    const v1 = new THREE.Vector3(...from);
+    const v2 = new THREE.Vector3(...to);
+    const d = v2.clone().sub(v1);
+    const l = d.length();
+    const m = v1.clone().add(d.clone().multiplyScalar(0.5));
+    const up = new THREE.Vector3(0, 1, 0);
+    const q = new THREE.Quaternion().setFromUnitVectors(
+      up,
+      d.clone().normalize()
+    );
+    return {
+      len: l,
+      quat: q,
+      localMid: m.clone().sub(v1),
+      localTip: v2.clone().sub(v1),
+    };
+  }, [from, to]);
+  useFrame(({ clock }) => {
+    if (!groupRef.current) return;
+    if (startRef.current == null) startRef.current = clock.elapsedTime;
+    const t = clock.elapsedTime - startRef.current - delay;
+    const p = Math.max(0, Math.min(1, t / duration));
+    groupRef.current.scale.set(p, p, p);
+  });
   return (
-    <group>
-      <mesh position={mid.toArray()} quaternion={quat}>
+    <group ref={groupRef} position={from}>
+      <mesh position={localMid.toArray()} quaternion={quat}>
         <cylinderGeometry args={[0.05, 0.05, Math.max(len - 0.22, 0.01), 16]} />
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} />
       </mesh>
-      <mesh position={v2.toArray()} quaternion={quat}>
+      <mesh position={localTip.toArray()} quaternion={quat}>
         <coneGeometry args={[0.12, 0.24, 20]} />
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} />
       </mesh>
