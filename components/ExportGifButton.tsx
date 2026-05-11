@@ -111,7 +111,7 @@ export function ExportGifButton({
 
       type Frame = { data: ImageData; delay: number };
       const frames: Frame[] = [];
-      const MAX_FRAMES = 24;
+      const MAX_FRAMES = 36;
       const sessionStart = performance.now();
       let prevCaptureTime = sessionStart;
       let lastFailureReason: string | null = null;
@@ -171,9 +171,12 @@ export function ExportGifButton({
           .querySelectorAll('style[data-html2canvas-internal]')
           .forEach((n) => n.remove());
 
-        // Wait for the browser to actually paint at least one frame so
-        // r3f / framer-motion advance pixels before the next capture.
-        await waitForPaint(120);
+        // Wait for the browser to paint between captures so r3f /
+        // framer-motion advance pixels. 70ms ≈ 4 paint frames at 60fps,
+        // enough for visible movement. If frames come out identical the
+        // fingerprint sanity check below will surface it as an error
+        // before shipping a static GIF.
+        await waitForPaint(70);
       }
 
       if (frames.length < 2) {
