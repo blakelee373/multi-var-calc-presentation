@@ -98,9 +98,9 @@ export function MountainScene({ variant = "intro", className }: MountainScenePro
               transition={{ duration: 1.0, delay: 0.2 }}
             />
             <polygon points={head(478, 320, 1, 0, 14)} fill={palette.teal} />
-            <rect x="270" y="296" width="138" height="22" rx="11" fill="#FFFFFF" stroke={palette.teal} strokeWidth="2" />
-            <text x="339" y="312" textAnchor="middle" fontSize="13" fontWeight="700" fill={palette.teal}>
-              route A — through the tunnel
+            <rect x="300" y="298" width="84" height="22" rx="11" fill="#FFFFFF" stroke={palette.teal} strokeWidth="2" />
+            <text x="342" y="314" textAnchor="middle" fontSize="13" fontWeight="700" fill={palette.teal}>
+              tunnel
             </text>
           </motion.g>
 
@@ -121,9 +121,9 @@ export function MountainScene({ variant = "intro", className }: MountainScenePro
             />
             {/* tangent at end: from control (380,280) to end (540,130) is direction (160,-150) */}
             <polygon points={head(540, 130, 160, -150, 14)} fill={palette.amber} />
-            <rect x="320" y="222" width="148" height="22" rx="11" fill="#FFFFFF" stroke={palette.amber} strokeWidth="2" />
-            <text x="394" y="238" textAnchor="middle" fontSize="13" fontWeight="700" fill={palette.amberDeep}>
-              route B — over the mountain
+            <rect x="352" y="224" width="92" height="22" rx="11" fill="#FFFFFF" stroke={palette.amber} strokeWidth="2" />
+            <text x="398" y="240" textAnchor="middle" fontSize="13" fontWeight="700" fill={palette.amberDeep}>
+              uphill
             </text>
           </motion.g>
         </>
