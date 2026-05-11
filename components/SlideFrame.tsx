@@ -14,17 +14,36 @@ export const SlideFrame = forwardRef<HTMLDivElement, SlideFrameProps>(
       <div
         ref={ref}
         data-slide-id={slideNumber}
-        className="relative bg-paper shadow-2xl rounded-xl overflow-hidden"
+        className="relative overflow-hidden rounded-2xl"
         style={{
-          width: "min(96vw, calc(96vh * 16 / 9))",
+          width: "min(96vw, calc(94vh * 16 / 9))",
           aspectRatio: "16 / 9",
+          background:
+            "radial-gradient(ellipse at top, #FFFFFF 0%, #FBF6EC 60%, #F4EBD8 100%)",
+          boxShadow:
+            "0 35px 80px -20px rgba(31,42,68,0.35), 0 8px 24px -8px rgba(31,42,68,0.18)",
         }}
       >
-        <div className="absolute inset-0 px-16 py-12 flex flex-col">
+        {/* subtle inner border */}
+        <div className="pointer-events-none absolute inset-0 rounded-2xl border border-white/40" />
+
+        {/* accent bar */}
+        <div
+          className="absolute top-0 left-0 h-1.5 w-full"
+          style={{
+            background:
+              "linear-gradient(90deg, #F59E0B 0%, #34D399 50%, #0EA5A4 100%)",
+          }}
+        />
+
+        <div className="absolute inset-0 px-14 pt-14 pb-12 flex flex-col">
           {children}
         </div>
-        <div className="pointer-events-none absolute bottom-4 right-6 text-xs font-medium text-ink/50 tracking-wider">
-          {slideNumber} / {totalSlides}
+
+        {/* slide number — bottom right */}
+        <div className="pointer-events-none absolute bottom-5 right-7 text-sm font-semibold text-ink/35 tracking-[0.18em]">
+          {String(slideNumber).padStart(2, "0")}
+          <span className="opacity-50"> / {String(totalSlides).padStart(2, "0")}</span>
         </div>
       </div>
     );

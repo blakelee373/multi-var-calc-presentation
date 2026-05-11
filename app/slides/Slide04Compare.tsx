@@ -2,34 +2,48 @@
 
 import { CurveXY } from "@/components/visuals/CurveXY";
 import { Hill3D } from "@/components/visuals/Hill3D";
+import { Eyebrow, Headline } from "@/components/Type";
 
 export default function Slide04Compare() {
   return (
-    <div className="h-full flex flex-col gap-4">
-      <h2 className="text-4xl font-bold text-ink leading-tight">
-        Normal calculus <span className="text-ink/40">vs.</span>{" "}
-        <span className="text-amber">multivariable calculus</span>
-      </h2>
-      <div className="flex-1 grid grid-cols-2 gap-6">
-        <div className="bg-paper border border-slate-200 rounded-xl p-5 flex flex-col">
-          <p className="text-xs uppercase tracking-wider text-teal font-bold mb-1">single-variable</p>
-          <p className="text-sm text-ink/70 mb-3">
-            One input, one direction of motion.
-          </p>
-          <div className="flex-1 grid place-items-center">
-            <CurveXY className="w-full max-w-md" />
+    <div className="h-full flex flex-col gap-5">
+      <div className="flex flex-col gap-2">
+        <Eyebrow>The big shift</Eyebrow>
+        <Headline>
+          One direction <span className="text-ink/35">vs.</span>{" "}
+          <span className="text-amber">many directions</span>.
+        </Headline>
+      </div>
+      <div className="flex-1 grid grid-cols-2 gap-6 min-h-0">
+        <div className="rounded-2xl border border-teal/30 bg-paper p-6 flex flex-col">
+          <div className="flex items-baseline justify-between mb-2">
+            <p className="text-base uppercase tracking-[0.22em] text-teal font-bold">
+              single-variable
+            </p>
+            <span className="font-mono text-2xl text-teal">y = f(x)</span>
           </div>
-          <p className="text-center text-ink font-mono mt-2">y = f(x)</p>
+          <p className="text-[clamp(0.95rem,1.2vw,1.25rem)] text-ink/70 mb-3">
+            One input. One direction of motion.
+          </p>
+          <div className="flex-1 grid place-items-center min-h-0">
+            <CurveXY className="w-full max-w-2xl" />
+          </div>
         </div>
-        <div className="bg-paper border border-slate-200 rounded-xl p-5 flex flex-col">
-          <p className="text-xs uppercase tracking-wider text-amber font-bold mb-1">multivariable</p>
-          <p className="text-sm text-ink/70 mb-3">
-            Multiple inputs — many possible directions.
-          </p>
-          <div className="flex-1 min-h-[260px]">
-            <Hill3D mode="many" className="w-full h-full" />
+        <div className="rounded-2xl border border-amber/40 bg-paper p-6 flex flex-col">
+          <div className="flex items-baseline justify-between mb-2">
+            <p className="text-base uppercase tracking-[0.22em] text-amber font-bold">
+              multivariable
+            </p>
+            <span className="font-mono text-2xl text-amberDeep" style={{ color: "#B45309" }}>
+              z = f(x, y)
+            </span>
           </div>
-          <p className="text-center text-ink font-mono mt-2">z = f(x, y)</p>
+          <p className="text-[clamp(0.95rem,1.2vw,1.25rem)] text-ink/70 mb-3">
+            Multiple inputs. <em>Many</em> possible directions.
+          </p>
+          <div className="flex-1 min-h-[240px] rounded-xl overflow-hidden">
+            <Hill3D mode="many" className="w-full h-full" rotate />
+          </div>
         </div>
       </div>
     </div>
