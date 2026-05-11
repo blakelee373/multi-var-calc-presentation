@@ -5,7 +5,11 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { palette } from "@/lib/palette";
 
-const Z_SCALE = 0.35;
+// Gentler vertical so the full paraboloid fits the viewport, then the
+// camera sits comfortably outside it.
+const Z_SCALE = 0.22;
+const HALF = 2.2; // domain ±2.2 in x and y
+
 function bowl(x: number, y: number) {
   return (x * x + y * y) * Z_SCALE;
 }
@@ -13,7 +17,7 @@ function bowl(x: number, y: number) {
 function Bowl() {
   const geometry = useMemo(() => {
     const seg = 100;
-    const size = 5;
+    const size = HALF * 2;
     const geo = new THREE.PlaneGeometry(size, size, seg, seg);
     const pos = geo.attributes.position;
     const colors = new Float32Array(pos.count * 3);
@@ -45,18 +49,22 @@ function Bowl() {
   }, []);
   return (
     <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]}>
-      <meshStandardMaterial vertexColors roughness={0.8} side={THREE.DoubleSide} />
+      <meshStandardMaterial
+        vertexColors
+        roughness={0.78}
+        side={THREE.DoubleSide}
+      />
     </mesh>
   );
 }
 
 function BowlContours() {
   const rings = useMemo(() => {
-    const levels = [0.4, 1.0, 1.6, 2.2];
+    const levels = [0.2, 0.5, 0.9, 1.3];
     const out: THREE.Vector3[][] = [];
     for (const level of levels) {
       const r = Math.sqrt(level / Z_SCALE);
-      if (r > 2.4) continue;
+      if (r > HALF) continue;
       const ring: THREE.Vector3[] = [];
       const N = 96;
       for (let i = 0; i <= N; i++) {
@@ -76,7 +84,7 @@ function BowlContours() {
         return (
           <line key={i}>
             <primitive object={geom} attach="geometry" />
-            <lineBasicMaterial color={palette.ink} transparent opacity={0.25} />
+            <lineBasicMaterial color={palette.ink} transparent opacity={0.28} />
           </line>
         );
       })}
@@ -88,8 +96,8 @@ function Arrow({
   from,
   to,
   color,
-  delay = 0.4,
-  duration = 1.1,
+  delay = 0.3,
+  duration = 1.0,
 }: {
   from: [number, number, number];
   to: [number, number, number];
@@ -127,31 +135,59 @@ function Arrow({
   return (
     <group ref={groupRef} position={from}>
       <mesh position={localMid.toArray()} quaternion={quat}>
-        <cylinderGeometry args={[0.05, 0.05, Math.max(len - 0.22, 0.01), 16]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} />
+        <cylinderGeometry args={[0.06, 0.06, Math.max(len - 0.22, 0.01), 16]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.45} />
       </mesh>
       <mesh position={localTip.toArray()} quaternion={quat}>
-        <coneGeometry args={[0.12, 0.24, 20]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} />
+        <coneGeometry args={[0.14, 0.28, 20]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.45} />
       </mesh>
     </group>
   );
 }
 
+function AutoRotate({ children }: { children: React.ReactNode }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame((_, dt) => {
+    if (ref.current) ref.current.rotation.y += dt * 0.18;
+  });
+  return <group ref={ref}>{children}</group>;
+}
+
+function PulsePoint({ position }: { position: [number, number, number] }) {
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    const s = 1 + Math.sin(clock.elapsedTime * 2.5) * 0.2;
+    ref.current.scale.set(s, s, s);
+  });
+  return (
+    <mesh ref={ref} position={position}>
+      <sphereGeometry args={[0.14, 24, 24]} />
+      <meshStandardMaterial
+        color={palette.ink}
+        emissive={palette.amber}
+        emissiveIntensity={0.45}
+      />
+    </mesh>
+  );
+}
+
 export function Bowl3D({ className }: { className?: string }) {
-  // ∇f at (1, 2) is (2, 4); arrow drawn FLAT in input plane along (1, 2).
-  const px = 1;
-  const py = 2;
+  // Visible point: scale (1,2) into the smaller HALF=2.2 domain so it
+  // sits inside the bowl rather than at the rim.
+  const px = 0.9;
+  const py = 1.6;
   const pz = bowl(px, py);
-  const ARROW_LIFT = 0.12;
+  const ARROW_LIFT = 0.18;
   const here: [number, number, number] = [px, pz + ARROW_LIFT, -py];
-  const gx = 2;
-  const gy = 4;
+  // ∇f(x,y) = ⟨2x, 2y⟩; at (0.9, 1.6) → ⟨1.8, 3.2⟩.
+  const gx = 2 * px;
+  const gy = 2 * py;
   const glen = Math.hypot(gx, gy);
   const ux = gx / glen;
   const uy = gy / glen;
-  const reach = 1.0;
-  // Flat arrow in the tangent direction (input plane); height stays at pz
+  const reach = 1.1;
   const tip: [number, number, number] = [
     px + ux * reach,
     pz + ARROW_LIFT,
@@ -161,7 +197,7 @@ export function Bowl3D({ className }: { className?: string }) {
   return (
     <div className={className}>
       <Canvas
-        camera={{ position: [5.5, 4.5, 5.5], fov: 36 }}
+        camera={{ position: [4.6, 4.2, 5.8], fov: 38 }}
         style={{ width: "100%", height: "100%" }}
         gl={{ preserveDrawingBuffer: true, antialias: true }}
       >
@@ -169,18 +205,12 @@ export function Bowl3D({ className }: { className?: string }) {
         <ambientLight intensity={0.6} />
         <directionalLight position={[6, 9, 4]} intensity={1.3} />
         <directionalLight position={[-4, 3, -5]} intensity={0.3} color="#BFDBFE" />
-        <Bowl />
-        <BowlContours />
-        {/* sample point */}
-        <mesh position={here}>
-          <sphereGeometry args={[0.14, 24, 24]} />
-          <meshStandardMaterial
-            color={palette.ink}
-            emissive={palette.amber}
-            emissiveIntensity={0.35}
-          />
-        </mesh>
-        <Arrow from={here} to={tip} color={palette.amber} />
+        <AutoRotate>
+          <Bowl />
+          <BowlContours />
+          <PulsePoint position={here} />
+          <Arrow from={here} to={tip} color={palette.amber} />
+        </AutoRotate>
       </Canvas>
     </div>
   );

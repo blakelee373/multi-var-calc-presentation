@@ -2,6 +2,7 @@
 
 import { Bowl3D } from "@/components/visuals/Bowl3D";
 import { Title, Mono } from "@/components/Type";
+import { palette } from "@/lib/palette";
 
 export default function Slide09Example() {
   return (
@@ -11,8 +12,15 @@ export default function Slide09Example() {
       </Title>
 
       <div className="flex-1 grid grid-cols-[6fr_5fr] gap-8 min-h-0 items-stretch">
-        <div className="rounded-lg border border-[#E5DCC4] overflow-hidden min-h-0">
-          <Bowl3D className="w-full h-full" />
+        <div className="flex flex-col gap-2 min-h-0">
+          <div className="flex-1 rounded-lg border border-[#E5DCC4] overflow-hidden min-h-0">
+            <Bowl3D className="w-full h-full" />
+          </div>
+          <div className="flex items-center justify-center gap-2 text-[clamp(0.85rem,1.1vw,1.1rem)] text-ink/75">
+            <span aria-hidden className="inline-block w-3 h-3 rounded-sm" style={{ background: palette.amber }} />
+            <Mono>∇f</Mono>
+            <span className="text-ink/45">— direction of fastest climb</span>
+          </div>
         </div>
 
         <div className="flex flex-col gap-5 min-h-0 justify-center">

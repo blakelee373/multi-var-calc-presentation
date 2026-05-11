@@ -219,74 +219,6 @@ function Arrow({
   );
 }
 
-function AxisLabel({
-  position,
-  text,
-  color,
-  size = 1.1,
-}: {
-  position: [number, number, number];
-  text: string;
-  color: string;
-  size?: number;
-}) {
-  const ref = useRef<THREE.Mesh>(null);
-  useFrame(({ camera }) => {
-    if (ref.current) ref.current.lookAt(camera.position);
-  });
-  const canvas = useMemo(() => {
-    const W = 512;
-    const H = 256;
-    const c = document.createElement("canvas");
-    c.width = W;
-    c.height = H;
-    const ctx = c.getContext("2d");
-    if (ctx) {
-      ctx.clearRect(0, 0, W, H);
-      // pill background
-      const r = 60;
-      const x = 8;
-      const y = 8;
-      const w = W - 16;
-      const h = H - 16;
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.lineTo(x + w - r, y);
-      ctx.arc(x + w - r, y + r, r, -Math.PI / 2, 0);
-      ctx.lineTo(x + w, y + h - r);
-      ctx.arc(x + w - r, y + h - r, r, 0, Math.PI / 2);
-      ctx.lineTo(x + r, y + h);
-      ctx.arc(x + r, y + h - r, r, Math.PI / 2, Math.PI);
-      ctx.lineTo(x, y + r);
-      ctx.arc(x + r, y + r, r, Math.PI, -Math.PI / 2);
-      ctx.closePath();
-      ctx.fillStyle = "rgba(255, 252, 244, 0.96)";
-      ctx.fill();
-      ctx.lineWidth = 6;
-      ctx.strokeStyle = color;
-      ctx.stroke();
-      // text
-      ctx.fillStyle = color;
-      ctx.font = "bold 168px ui-sans-serif, system-ui, Inter, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(text, W / 2, H / 2 + 6);
-    }
-    return c;
-  }, [color, text]);
-  const texture = useMemo(() => {
-    const t = new THREE.CanvasTexture(canvas);
-    t.needsUpdate = true;
-    return t;
-  }, [canvas]);
-  return (
-    <mesh ref={ref} position={position}>
-      <planeGeometry args={[size * 2, size]} />
-      <meshBasicMaterial map={texture} transparent depthTest={false} />
-    </mesh>
-  );
-}
-
 function AutoRotate({
   children,
   enabled,
@@ -357,8 +289,9 @@ export function Hill3D({
     -(py + ugy * LEN),
   ];
 
-  // Disable rotation for modes where alignment with x/y must read correctly.
-  const wantsRotation = rotate && mode !== "partials" && mode !== "gradient";
+  // Rotate every mode — the arrows still represent their input-space
+  // directions; viewer perspective just changes.
+  const wantsRotation = rotate;
 
   return (
     <div className={className}>
@@ -440,92 +373,58 @@ export function Hill3D({
             </>
           )}
 
-          {/* PARTIALS: flat +x and +y arrows with prominent labels */}
+          {/* PARTIALS: flat +x and +y arrows (no in-3D labels; caption is in HTML) */}
           {mode === "partials" && (
             <>
               <Arrow
                 from={lifted}
                 to={fxTip}
                 color={palette.teal}
-                thickness={0.06}
-                headSize={0.26}
+                thickness={0.07}
+                headSize={0.3}
                 emissive
-                delay={0.3}
-              />
-              <AxisLabel
-                position={[fxTip[0] + 0.55, fxTip[1] + 0.45, fxTip[2]]}
-                text="fx"
-                color={palette.teal}
-                size={1.0}
+                delay={0.2}
               />
               <Arrow
                 from={lifted}
                 to={fyTip}
                 color="#0F766E"
-                thickness={0.06}
-                headSize={0.26}
+                thickness={0.07}
+                headSize={0.3}
                 emissive
-                delay={1.0}
-              />
-              <AxisLabel
-                position={[fyTip[0], fyTip[1] + 0.45, fyTip[2] - 0.55]}
-                text="fy"
-                color="#0F766E"
-                size={1.0}
+                delay={0.8}
               />
             </>
           )}
 
-          {/* GRADIENT: both partials + the combined ∇f arrow, all labelled */}
+          {/* GRADIENT: partials + ∇f arrow (caption in HTML) */}
           {mode === "gradient" && (
             <>
               <Arrow
                 from={lifted}
                 to={[px + LEN * 0.65, lifted[1], -py]}
                 color={palette.teal}
-                thickness={0.04}
-                headSize={0.18}
-                delay={0.3}
-              />
-              <AxisLabel
-                position={[px + LEN * 0.65 + 0.5, lifted[1] + 0.45, -py]}
-                text="fx"
-                color={palette.teal}
-                size={0.9}
+                thickness={0.045}
+                headSize={0.2}
+                delay={0.2}
               />
               <Arrow
                 from={lifted}
                 to={[px, lifted[1], -(py + LEN * 0.65)]}
                 color="#0F766E"
-                thickness={0.04}
-                headSize={0.18}
-                delay={1.0}
-              />
-              <AxisLabel
-                position={[px, lifted[1] + 0.45, -(py + LEN * 0.65) - 0.5]}
-                text="fy"
-                color="#0F766E"
-                size={0.9}
+                thickness={0.045}
+                headSize={0.2}
+                delay={0.7}
               />
               <Arrow
                 from={lifted}
                 to={gradTip}
                 color={palette.amber}
-                thickness={0.065}
-                headSize={0.3}
+                thickness={0.075}
+                headSize={0.34}
                 emissive
-                delay={1.7}
+                delay={1.2}
                 duration={1.0}
-              />
-              <AxisLabel
-                position={[
-                  gradTip[0] + ugx * 0.6,
-                  gradTip[1] + 0.55,
-                  gradTip[2] - ugy * 0.6,
-                ]}
-                text="∇f"
-                color={palette.amber}
-                size={1.1}
               />
             </>
           )}
