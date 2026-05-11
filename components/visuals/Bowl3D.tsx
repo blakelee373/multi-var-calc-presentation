@@ -146,8 +146,7 @@ function Arrow({
           emissive={color}
           emissiveIntensity={0.45}
           depthTest={!onTop}
-          transparent={onTop}
-          opacity={onTop ? 0.92 : 1}
+          depthWrite={!onTop}
         />
       </mesh>
       <mesh
@@ -161,8 +160,7 @@ function Arrow({
           emissive={color}
           emissiveIntensity={0.45}
           depthTest={!onTop}
-          transparent={onTop}
-          opacity={onTop ? 0.92 : 1}
+          depthWrite={!onTop}
         />
       </mesh>
     </group>
@@ -204,10 +202,15 @@ export function Bowl3D({ className }: { className?: string }) {
   const ux = gx / glen;
   const uy = gy / glen;
   const reach = 0.9;
+  // Arrow tip lifted clearly above the bowl wall in the gradient
+  // direction so the chord from sample-on-surface to tip stays above
+  // the rising wall over its full length.
+  const tipPx = px + ux * reach;
+  const tipPy = py + uy * reach;
   const tip: [number, number, number] = [
-    px + ux * reach,
-    pz + ARROW_LIFT,
-    -(py + uy * reach),
+    tipPx,
+    bowl(tipPx, tipPy) + 0.5,
+    -tipPy,
   ];
 
   return (
@@ -226,7 +229,7 @@ export function Bowl3D({ className }: { className?: string }) {
           <Bowl />
           <BowlContours />
           <PulsePoint position={here} />
-          <Arrow from={armOrigin} to={tip} color={palette.amber} onTop />
+          <Arrow from={here} to={tip} color={palette.amber} />
         </group>
       </Canvas>
     </div>

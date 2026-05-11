@@ -193,8 +193,7 @@ function Arrow({
           emissiveIntensity={emissive ? 0.4 : 0}
           roughness={0.45}
           depthTest={!onTop}
-          transparent={onTop}
-          opacity={onTop ? 0.92 : 1}
+          depthWrite={!onTop}
         />
       </mesh>
       <mesh
@@ -209,8 +208,7 @@ function Arrow({
           emissiveIntensity={emissive ? 0.4 : 0}
           roughness={0.45}
           depthTest={!onTop}
-          transparent={onTop}
-          opacity={onTop ? 0.92 : 1}
+          depthWrite={!onTop}
         />
       </mesh>
     </group>
@@ -259,10 +257,15 @@ export function Hill3D({ mode, className, interactive = false }: Hill3DProps) {
   const LEN = 1.2;
   const fxTip: [number, number, number] = [px + LEN, Yarrow, -py];
   const fyTip: [number, number, number] = [px, Yarrow, -(py + LEN)];
+  // Gradient arrow climbs up the hill: tip is placed clearly ABOVE the
+  // surface in the gradient direction so the chord between
+  // sample-on-surface and tip stays visible over the rising terrain.
+  const gradTipX = px + ugx * LEN;
+  const gradTipY = py + ugy * LEN;
   const gradTip: [number, number, number] = [
-    px + ugx * LEN,
-    Yarrow,
-    -(py + ugy * LEN),
+    gradTipX,
+    f(gradTipX, gradTipY) + 0.5,
+    -gradTipY,
   ];
 
   return (
@@ -328,13 +331,12 @@ export function Hill3D({ mode, className, interactive = false }: Hill3DProps) {
                 );
               })}
               <Arrow
-                from={armOrigin}
+                from={here}
                 to={gradTip}
                 color={palette.amber}
-                thickness={0.055}
-                headSize={0.26}
+                thickness={0.06}
+                headSize={0.28}
                 emissive
-                onTop
               />
             </>
           )}
@@ -381,7 +383,7 @@ export function Hill3D({ mode, className, interactive = false }: Hill3DProps) {
                 delay={0.7}
               />
               <Arrow
-                from={armOrigin}
+                from={here}
                 to={gradTip}
                 color={palette.amber}
                 thickness={0.075}
@@ -389,7 +391,6 @@ export function Hill3D({ mode, className, interactive = false }: Hill3DProps) {
                 emissive
                 delay={1.2}
                 duration={1.0}
-                onTop
               />
             </>
           )}
