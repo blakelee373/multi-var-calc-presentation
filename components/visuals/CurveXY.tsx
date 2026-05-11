@@ -2,48 +2,43 @@
 
 import { motion } from "framer-motion";
 import { palette } from "@/lib/palette";
+import { r3 } from "@/lib/round";
 
 type CurveXYProps = {
   showTangent?: boolean;
   className?: string;
 };
 
-// y(x) — defined once so the tangent uses the same function as the curve.
+// y(x) — same function used to draw the curve and to compute its tangent.
 function yOf(x: number) {
-  return 180 - (50 - 0.0007 * (x - 230) * (x - 230) - 5 * Math.sin(x / 40));
+  return 130 + 0.0009 * (x - 230) * (x - 230) - 8 * Math.sin(x / 50);
 }
-// dy/dx
 function dyOf(x: number) {
-  return -(-2 * 0.0007 * (x - 230) - (5 / 40) * Math.cos(x / 40));
+  return 0.0018 * (x - 230) - (8 / 50) * Math.cos(x / 50);
 }
 
 export function CurveXY({ showTangent = false, className }: CurveXYProps) {
   const pts: string[] = [];
   for (let x = 30; x <= 470; x += 4) {
-    pts.push(`${x},${yOf(x).toFixed(1)}`);
+    pts.push(`${x},${r3(yOf(x))}`);
   }
-  // Sample point ON the curve and its actual tangent line.
-  const tx = 300;
+
+  // Pick a sample point in the steep left flank so the tangent is visibly
+  // *not* parallel to a near-horizontal stretch of curve.
+  const tx = 110;
   const ty = yOf(tx);
   const slope = dyOf(tx);
-  const tLen = 90;
-  const tx1 = tx - tLen;
-  const ty1 = ty - slope * tLen;
-  const tx2 = tx + tLen;
-  const ty2 = ty + slope * tLen;
+  const tLen = 130;
+  const tx1 = r3(tx - tLen);
+  const ty1 = r3(ty - slope * tLen);
+  const tx2 = r3(tx + tLen);
+  const ty2 = r3(ty + slope * tLen);
 
   return (
     <svg viewBox="0 0 500 240" className={className} aria-hidden>
-      <defs>
-        <linearGradient id="curveFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={palette.teal} stopOpacity="0.24" />
-          <stop offset="100%" stopColor={palette.teal} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
       <rect x="0" y="0" width="500" height="240" fill={palette.paper} />
 
-      <g stroke={palette.slate} strokeWidth="0.5" opacity="0.28">
+      <g stroke={palette.slate} strokeWidth="0.5" opacity="0.22">
         {[70, 110, 150, 190, 230, 270, 310, 350, 390, 430].map((x) => (
           <line key={`vx${x}`} x1={x} y1="30" x2={x} y2="210" />
         ))}
@@ -59,12 +54,10 @@ export function CurveXY({ showTangent = false, className }: CurveXYProps) {
       <text x="476" y="226" fontSize="14" fontWeight="700" fill={palette.ink}>x</text>
       <text x="14" y="28" fontSize="14" fontWeight="700" fill={palette.ink}>y</text>
 
-      <polygon fill="url(#curveFill)" points={`30,210 ${pts.join(" ")} 470,210`} />
-
       <motion.polyline
         fill="none"
         stroke={palette.teal}
-        strokeWidth="3.5"
+        strokeWidth="3"
         strokeLinecap="round"
         strokeLinejoin="round"
         points={pts.join(" ")}
@@ -77,39 +70,66 @@ export function CurveXY({ showTangent = false, className }: CurveXYProps) {
         <motion.g
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.0, duration: 0.5 }}
+          transition={{ delay: 0.9, duration: 0.5 }}
         >
+          {/* white halo so the tangent reads against grid + curve */}
           <line
             x1={tx1}
             y1={ty1}
             x2={tx2}
             y2={ty2}
-            stroke={palette.amber}
-            strokeWidth="2.5"
-            strokeDasharray="6 4"
+            stroke={palette.paper}
+            strokeWidth="7"
+            strokeLinecap="round"
+          />
+          <line
+            x1={tx1}
+            y1={ty1}
+            x2={tx2}
+            y2={ty2}
+            stroke={palette.amberDeep}
+            strokeWidth="3.2"
             strokeLinecap="round"
           />
           <circle
             cx={tx}
-            cy={ty}
-            r="5"
+            cy={r3(ty)}
+            r="6"
             fill={palette.amber}
             stroke={palette.paper}
-            strokeWidth="2"
+            strokeWidth="2.5"
           />
-          <text
-            x={tx2 + 8}
-            y={ty2 + 5}
-            fontSize="13"
-            fontWeight="700"
-            fill={palette.amberDeep}
-          >
-            tangent · slope = f′(x)
-          </text>
+          {/* annotation placed inside the chart, above the curve */}
+          <g transform="translate(180 50)">
+            <rect
+              x="0"
+              y="0"
+              width="158"
+              height="26"
+              rx="4"
+              fill={palette.paper}
+              stroke={palette.amberDeep}
+              strokeWidth="1.5"
+            />
+            <text x="10" y="18" fontSize="13" fontWeight="700" fill={palette.amberDeep}>
+              tangent · slope = f′(x)
+            </text>
+          </g>
+          {/* leader from annotation to marker */}
+          <line
+            x1="220"
+            y1="76"
+            x2={r3(tx + 6)}
+            y2={r3(ty - 8)}
+            stroke={palette.amberDeep}
+            strokeWidth="1.5"
+            strokeDasharray="3 3"
+            opacity="0.7"
+          />
         </motion.g>
       )}
 
-      <text x="356" y="64" fontSize="18" fontWeight="700" fill={palette.teal}>
+      <text x="356" y="80" fontSize="18" fontWeight="700" fill={palette.teal}>
         y = f(x)
       </text>
     </svg>
