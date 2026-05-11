@@ -29,7 +29,7 @@ export default function Slide04Compare() {
             z = f(x, y)
           </p>
           <div className="flex-1 min-h-[200px] rounded-md overflow-hidden my-3">
-            <Hill3D mode="many" className="w-full h-full" rotate />
+            <Hill3D mode="many" className="w-full h-full" />
           </div>
           <ul className="space-y-1.5 text-[clamp(1.05rem,1.35vw,1.4rem)] text-ink font-medium">
             <li>· Domain: a plane.</li>

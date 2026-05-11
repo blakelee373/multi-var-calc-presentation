@@ -5,10 +5,9 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { palette } from "@/lib/palette";
 
-// Gentler vertical so the full paraboloid fits the viewport, then the
-// camera sits comfortably outside it.
 const Z_SCALE = 0.22;
-const HALF = 2.2; // domain ±2.2 in x and y
+const HALF = 2.2;
+const PLATFORM_Y = 2.6; // above bowl rim (~1.95)
 
 function bowl(x: number, y: number) {
   return (x * x + y * y) * Z_SCALE;
@@ -146,12 +145,20 @@ function Arrow({
   );
 }
 
-function AutoRotate({ children }: { children: React.ReactNode }) {
-  const ref = useRef<THREE.Group>(null);
-  useFrame((_, dt) => {
-    if (ref.current) ref.current.rotation.y += dt * 0.18;
-  });
-  return <group ref={ref}>{children}</group>;
+function Stem({
+  from,
+  to,
+}: {
+  from: [number, number, number];
+  to: [number, number, number];
+}) {
+  const len = Math.abs(to[1] - from[1]);
+  return (
+    <mesh position={[from[0], (from[1] + to[1]) / 2, from[2]]}>
+      <cylinderGeometry args={[0.02, 0.02, len, 10]} />
+      <meshBasicMaterial color={palette.ink} transparent opacity={0.45} />
+    </mesh>
+  );
 }
 
 function PulsePoint({ position }: { position: [number, number, number] }) {
@@ -174,28 +181,27 @@ function PulsePoint({ position }: { position: [number, number, number] }) {
 }
 
 export function Bowl3D({ className }: { className?: string }) {
-  // Point + arrow both sit ON the bowl surface. The arrow is a chord
-  // between two surface points along the gradient direction; for a
-  // convex bowl that chord lies slightly above the surface curve all
-  // the way across, so it reads as "going up the bowl."
   const px = 0.6;
   const py = 1.0;
   const pz = bowl(px, py);
   const here: [number, number, number] = [px, pz, -py];
+  const armOrigin: [number, number, number] = [px, PLATFORM_Y, -py];
   const gx = 2 * px;
   const gy = 2 * py;
   const glen = Math.hypot(gx, gy);
   const ux = gx / glen;
   const uy = gy / glen;
-  const reach = 0.9;
-  const tipX = px + ux * reach;
-  const tipY = py + uy * reach;
-  const tip: [number, number, number] = [tipX, bowl(tipX, tipY), -tipY];
+  const reach = 1.0;
+  const tip: [number, number, number] = [
+    px + ux * reach,
+    PLATFORM_Y,
+    -(py + uy * reach),
+  ];
 
   return (
     <div className={className}>
       <Canvas
-        camera={{ position: [4.6, 4.2, 5.8], fov: 38 }}
+        camera={{ position: [4.8, 4.4, 5.6], fov: 38 }}
         style={{ width: "100%", height: "100%" }}
         gl={{ preserveDrawingBuffer: true, antialias: true }}
       >
@@ -203,12 +209,12 @@ export function Bowl3D({ className }: { className?: string }) {
         <ambientLight intensity={0.6} />
         <directionalLight position={[6, 9, 4]} intensity={1.3} />
         <directionalLight position={[-4, 3, -5]} intensity={0.3} color="#BFDBFE" />
-        <AutoRotate>
-          <Bowl />
-          <BowlContours />
-          <PulsePoint position={here} />
-          <Arrow from={here} to={tip} color={palette.amber} />
-        </AutoRotate>
+
+        <Bowl />
+        <BowlContours />
+        <PulsePoint position={here} />
+        <Stem from={here} to={armOrigin} />
+        <Arrow from={armOrigin} to={tip} color={palette.amber} />
       </Canvas>
     </div>
   );

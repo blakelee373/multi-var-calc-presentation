@@ -12,10 +12,8 @@ type Hill3DProps = {
   mode: Mode;
   className?: string;
   interactive?: boolean;
-  rotate?: boolean;
 };
 
-// f(x, y) = A * exp(-B * ((x-CX)^2 + (y-CY)^2)) - 0.8
 const A = 4;
 const B = 0.6;
 const CX = 0.4;
@@ -23,17 +21,17 @@ const CY = 0.2;
 function f(x: number, y: number) {
   return A * Math.exp(-B * ((x - CX) ** 2 + (y - CY) ** 2)) - 0.8;
 }
-function fx(x: number, y: number) {
+function fxAt(x: number, y: number) {
   return -2 * B * (x - CX) * (f(x, y) + 0.8);
 }
-function fy(x: number, y: number) {
+function fyAt(x: number, y: number) {
   return -2 * B * (y - CY) * (f(x, y) + 0.8);
 }
 
-// Surface is rotated -π/2 around X, so:
-//   input-x  → world +x
-//   input-y  → world -z
-//   height z → world +y
+// Arrows live on a horizontal "platform" above the hill peak (peak ≈ 3.2).
+// A thin stem from the sample dot up to the platform makes it clear the
+// arrows are 2D vectors in the input plane, just lifted for visibility.
+const PLATFORM_Y = 4.2;
 
 function Surface() {
   const geometry = useMemo(() => {
@@ -65,19 +63,14 @@ function Surface() {
   }, []);
   return (
     <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]}>
-      <meshStandardMaterial
-        vertexColors
-        flatShading={false}
-        roughness={0.78}
-        metalness={0.05}
-      />
+      <meshStandardMaterial vertexColors roughness={0.78} metalness={0.05} />
     </mesh>
   );
 }
 
 function ContourLines() {
   const lines = useMemo(() => {
-    const result: { points: THREE.Vector3[] }[] = [];
+    const result: THREE.Vector3[][] = [];
     const levels = [0, 0.6, 1.2, 1.8, 2.4, 3.0];
     const grid = 140;
     const range = 3;
@@ -121,14 +114,14 @@ function ContourLines() {
           if (edges.length === 2) segments.push(edges[0], edges[1]);
         }
       }
-      result.push({ points: segments });
+      result.push(segments);
     }
     return result;
   }, []);
   return (
     <group>
-      {lines.map((l, idx) => {
-        const geom = new THREE.BufferGeometry().setFromPoints(l.points);
+      {lines.map((points, idx) => {
+        const geom = new THREE.BufferGeometry().setFromPoints(points);
         return (
           <lineSegments key={idx} geometry={geom}>
             <lineBasicMaterial color={palette.ink} transparent opacity={0.18} />
@@ -148,7 +141,6 @@ function Arrow({
   emissive = false,
   delay = 0,
   duration = 0.9,
-  onTop = false,
 }: {
   from: [number, number, number];
   to: [number, number, number];
@@ -158,28 +150,27 @@ function Arrow({
   emissive?: boolean;
   delay?: number;
   duration?: number;
-  onTop?: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const startRef = useRef<number | null>(null);
-
-  const { mid, len, quat, localMid, localTip } = useMemo(() => {
+  const { len, quat, localMid, localTip } = useMemo(() => {
     const v1 = new THREE.Vector3(...from);
     const v2 = new THREE.Vector3(...to);
     const d = v2.clone().sub(v1);
     const l = d.length();
     const m = v1.clone().add(d.clone().multiplyScalar(0.5));
     const up = new THREE.Vector3(0, 1, 0);
-    const q = new THREE.Quaternion().setFromUnitVectors(up, d.clone().normalize());
+    const q = new THREE.Quaternion().setFromUnitVectors(
+      up,
+      d.clone().normalize()
+    );
     return {
-      mid: m,
       len: l,
       quat: q,
       localMid: m.clone().sub(v1),
       localTip: v2.clone().sub(v1),
     };
   }, [from, to]);
-
   useFrame(({ clock }) => {
     if (!groupRef.current) return;
     if (startRef.current == null) startRef.current = clock.elapsedTime;
@@ -187,18 +178,10 @@ function Arrow({
     const p = Math.max(0, Math.min(1, t / duration));
     groupRef.current.scale.set(p, p, p);
   });
-
   if (len < 0.001) return null;
-
-  const renderOrder = onTop ? 10 : 0;
-
   return (
     <group ref={groupRef} position={from}>
-      <mesh
-        position={localMid.toArray()}
-        quaternion={quat}
-        renderOrder={renderOrder}
-      >
+      <mesh position={localMid.toArray()} quaternion={quat}>
         <cylinderGeometry
           args={[thickness, thickness, Math.max(len - headSize, 0.01), 16]}
         />
@@ -207,40 +190,37 @@ function Arrow({
           emissive={emissive ? color : "#000000"}
           emissiveIntensity={emissive ? 0.4 : 0}
           roughness={0.45}
-          depthTest={!onTop}
         />
       </mesh>
-      <mesh
-        position={localTip.toArray()}
-        quaternion={quat}
-        renderOrder={renderOrder}
-      >
+      <mesh position={localTip.toArray()} quaternion={quat}>
         <coneGeometry args={[headSize * 0.55, headSize, 20]} />
         <meshStandardMaterial
           color={color}
           emissive={emissive ? color : "#000000"}
           emissiveIntensity={emissive ? 0.4 : 0}
           roughness={0.45}
-          depthTest={!onTop}
         />
       </mesh>
-      <group visible={false} position={mid.toArray()} />
     </group>
   );
 }
 
-function AutoRotate({
-  children,
-  enabled,
+function Stem({
+  from,
+  to,
 }: {
-  children: React.ReactNode;
-  enabled: boolean;
+  from: [number, number, number];
+  to: [number, number, number];
 }) {
-  const ref = useRef<THREE.Group>(null);
-  useFrame((_, dt) => {
-    if (ref.current && enabled) ref.current.rotation.y += dt * 0.12;
-  });
-  return <group ref={ref}>{children}</group>;
+  const len = Math.abs(to[1] - from[1]);
+  return (
+    <mesh
+      position={[from[0], (from[1] + to[1]) / 2, from[2]]}
+    >
+      <cylinderGeometry args={[0.018, 0.018, len, 10]} />
+      <meshBasicMaterial color={palette.ink} transparent opacity={0.45} />
+    </mesh>
+  );
 }
 
 function PulseSphere({ position }: { position: [number, number, number] }) {
@@ -252,183 +232,166 @@ function PulseSphere({ position }: { position: [number, number, number] }) {
   });
   return (
     <mesh ref={ref} position={position}>
-      <sphereGeometry args={[0.13, 24, 24]} />
+      <sphereGeometry args={[0.14, 24, 24]} />
       <meshStandardMaterial
         color={palette.ink}
         emissive={palette.amber}
-        emissiveIntensity={0.35}
+        emissiveIntensity={0.4}
       />
     </mesh>
   );
 }
 
-export function Hill3D({
-  mode,
-  className,
-  interactive = false,
-  rotate = true,
-}: Hill3DProps) {
-  // Sample point chosen so +x and +y move AWAY from the hill peak at
-  // (CX, CY) = (0.4, 0.2). Both partial arrows then naturally descend
-  // along the surface (visible from any angle); the gradient arrow
-  // climbs UP the surface toward the peak.
+export function Hill3D({ mode, className, interactive = false }: Hill3DProps) {
   const px = 1.4;
   const py = 1.4;
-  const SURFACE_LIFT = 0.04; // tiny lift to avoid z-fighting with mesh
-  const onSurface = (
-    x: number,
-    y: number
-  ): [number, number, number] => [x, f(x, y) + SURFACE_LIFT, -y];
-  const here = onSurface(px, py);
+  const sampleY = f(px, py);
 
-  const gx = fx(px, py);
-  const gy = fy(px, py);
+  const here: [number, number, number] = [px, sampleY, -py];
+  const armOrigin: [number, number, number] = [px, PLATFORM_Y, -py];
+
+  const gx = fxAt(px, py);
+  const gy = fyAt(px, py);
   const glen = Math.hypot(gx, gy) || 1;
   const ugx = gx / glen;
   const ugy = gy / glen;
 
-  const LEN = 1.2;
-  // Partial arrows: input-space direction along +x / +y, but BOTH endpoints
-  // anchored on the surface so the arrow visibly traces the slope.
-  const fxTip = onSurface(px + LEN, py);
-  const fyTip = onSurface(px, py + LEN);
-  // Gradient arrow: input-space direction (ugx, ugy), tip on surface.
-  const gradTip = onSurface(px + ugx * LEN, py + ugy * LEN);
-
-  // Rotate every mode — the arrows still represent their input-space
-  // directions; viewer perspective just changes.
-  const wantsRotation = rotate;
+  const LEN = 1.0;
+  const fxTip: [number, number, number] = [px + LEN, PLATFORM_Y, -py];
+  const fyTip: [number, number, number] = [px, PLATFORM_Y, -(py + LEN)];
+  const gradTip: [number, number, number] = [
+    px + ugx * LEN,
+    PLATFORM_Y,
+    -(py + ugy * LEN),
+  ];
 
   return (
     <div className={className}>
       <Canvas
-        camera={{ position: [4.8, 4.4, 5.8], fov: 36 }}
+        camera={{ position: [5.6, 5.4, 6.0], fov: 38 }}
         style={{ width: "100%", height: "100%" }}
         gl={{ preserveDrawingBuffer: true, antialias: true }}
       >
         <color attach="background" args={[palette.paper]} />
-        <fog attach="fog" args={[palette.paper, 9, 18]} />
+        <fog attach="fog" args={[palette.paper, 10, 20]} />
         <ambientLight intensity={0.55} />
         <directionalLight position={[6, 9, 4]} intensity={1.25} />
-        <directionalLight
-          position={[-4, 3, -5]}
-          intensity={0.3}
-          color="#BFDBFE"
-        />
+        <directionalLight position={[-4, 3, -5]} intensity={0.3} color="#BFDBFE" />
 
-        <AutoRotate enabled={wantsRotation}>
-          <Surface />
-          <ContourLines />
+        <Surface />
+        <ContourLines />
 
-          {mode !== "static" && <PulseSphere position={here} />}
+        {mode !== "static" && (
+          <>
+            <PulseSphere position={here} />
+            <Stem from={here} to={armOrigin} />
+          </>
+        )}
 
-          {/* CANDIDATES (many) — anchored on the surface */}
-          {mode === "many" &&
-            Array.from({ length: 10 }).map((_, i) => {
+        {mode === "many" &&
+          Array.from({ length: 10 }).map((_, i) => {
+            const a = (i / 10) * Math.PI * 2;
+            const tip: [number, number, number] = [
+              px + Math.cos(a) * 0.7,
+              PLATFORM_Y,
+              -(py + Math.sin(a) * 0.7),
+            ];
+            return (
+              <Arrow
+                key={i}
+                from={armOrigin}
+                to={tip}
+                color={palette.slate}
+                thickness={0.025}
+                headSize={0.14}
+              />
+            );
+          })}
+
+        {mode === "best" && (
+          <>
+            {Array.from({ length: 10 }).map((_, i) => {
               const a = (i / 10) * Math.PI * 2;
-              const tip = onSurface(
-                px + Math.cos(a) * 0.6,
-                py + Math.sin(a) * 0.6
-              );
+              const tip: [number, number, number] = [
+                px + Math.cos(a) * 0.65,
+                PLATFORM_Y,
+                -(py + Math.sin(a) * 0.65),
+              ];
               return (
                 <Arrow
                   key={i}
-                  from={here}
+                  from={armOrigin}
                   to={tip}
-                  color={palette.slate}
-                  thickness={0.025}
-                  headSize={0.14}
+                  color="#CBD5E1"
+                  thickness={0.018}
+                  headSize={0.1}
                 />
               );
             })}
+            <Arrow
+              from={armOrigin}
+              to={gradTip}
+              color={palette.amber}
+              thickness={0.055}
+              headSize={0.26}
+              emissive
+            />
+          </>
+        )}
 
-          {/* BEST: candidates faded + one amber, all on the surface */}
-          {mode === "best" && (
-            <>
-              {Array.from({ length: 10 }).map((_, i) => {
-                const a = (i / 10) * Math.PI * 2;
-                const tip = onSurface(
-                  px + Math.cos(a) * 0.55,
-                  py + Math.sin(a) * 0.55
-                );
-                return (
-                  <Arrow
-                    key={i}
-                    from={here}
-                    to={tip}
-                    color="#CBD5E1"
-                    thickness={0.018}
-                    headSize={0.1}
-                  />
-                );
-              })}
-              <Arrow
-                from={here}
-                to={gradTip}
-                color={palette.amber}
-                thickness={0.055}
-                headSize={0.26}
-                emissive
-              />
-            </>
-          )}
+        {mode === "partials" && (
+          <>
+            <Arrow
+              from={armOrigin}
+              to={fxTip}
+              color={palette.teal}
+              thickness={0.07}
+              headSize={0.3}
+              emissive
+              delay={0.2}
+            />
+            <Arrow
+              from={armOrigin}
+              to={fyTip}
+              color="#0F766E"
+              thickness={0.07}
+              headSize={0.3}
+              emissive
+              delay={0.8}
+            />
+          </>
+        )}
 
-          {/* PARTIALS: surface-anchored arrows along +x and +y */}
-          {mode === "partials" && (
-            <>
-              <Arrow
-                from={here}
-                to={fxTip}
-                color={palette.teal}
-                thickness={0.07}
-                headSize={0.3}
-                emissive
-                delay={0.2}
-              />
-              <Arrow
-                from={here}
-                to={fyTip}
-                color="#0F766E"
-                thickness={0.07}
-                headSize={0.3}
-                emissive
-                delay={0.8}
-              />
-            </>
-          )}
-
-          {/* GRADIENT: partials + ∇f arrow, all on the surface */}
-          {mode === "gradient" && (
-            <>
-              <Arrow
-                from={here}
-                to={onSurface(px + LEN * 0.65, py)}
-                color={palette.teal}
-                thickness={0.045}
-                headSize={0.2}
-                delay={0.2}
-              />
-              <Arrow
-                from={here}
-                to={onSurface(px, py + LEN * 0.65)}
-                color="#0F766E"
-                thickness={0.045}
-                headSize={0.2}
-                delay={0.7}
-              />
-              <Arrow
-                from={here}
-                to={gradTip}
-                color={palette.amber}
-                thickness={0.075}
-                headSize={0.34}
-                emissive
-                delay={1.2}
-                duration={1.0}
-              />
-            </>
-          )}
-        </AutoRotate>
+        {mode === "gradient" && (
+          <>
+            <Arrow
+              from={armOrigin}
+              to={[px + LEN * 0.65, PLATFORM_Y, -py]}
+              color={palette.teal}
+              thickness={0.045}
+              headSize={0.2}
+              delay={0.2}
+            />
+            <Arrow
+              from={armOrigin}
+              to={[px, PLATFORM_Y, -(py + LEN * 0.65)]}
+              color="#0F766E"
+              thickness={0.045}
+              headSize={0.2}
+              delay={0.7}
+            />
+            <Arrow
+              from={armOrigin}
+              to={gradTip}
+              color={palette.amber}
+              thickness={0.075}
+              headSize={0.34}
+              emissive
+              delay={1.2}
+              duration={1.0}
+            />
+          </>
+        )}
 
         {interactive && <OrbitControls enablePan={false} />}
       </Canvas>

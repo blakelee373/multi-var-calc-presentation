@@ -24,7 +24,7 @@ export default function Slide05Compass() {
 
         <div className="grid grid-rows-[1fr_1fr] gap-4 min-h-0">
           <div className="rounded-lg border border-[#E5DCC4] overflow-hidden min-h-0">
-            <Hill3D mode="best" className="w-full h-full" rotate />
+            <Hill3D mode="best" className="w-full h-full" />
           </div>
           <div className="rounded-lg border border-[#E5DCC4] p-3 grid place-items-center min-h-0">
             <ArrowField className="w-full max-h-full" />

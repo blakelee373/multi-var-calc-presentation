@@ -91,6 +91,12 @@ export function ExportGifButton({
           console.warn(`frame ${i} snapshot failed, skipping`, e);
           continue;
         }
+        if (!snapshot.width || !snapshot.height) {
+          console.warn(
+            `frame ${i} produced ${snapshot.width}x${snapshot.height} canvas, skipping`
+          );
+          continue;
+        }
         octx.fillStyle = "#FFFFFF";
         octx.fillRect(0, 0, width, height);
         octx.drawImage(snapshot, 0, 0, width, height);

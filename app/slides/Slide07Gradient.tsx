@@ -27,7 +27,7 @@ export default function Slide07Gradient() {
 
         <div className="flex flex-col gap-2 min-h-0">
           <div className="flex-1 rounded-lg border border-[#E5DCC4] overflow-hidden min-h-0">
-            <Hill3D mode="gradient" className="w-full h-full" rotate />
+            <Hill3D mode="gradient" className="w-full h-full" />
           </div>
           <div className="flex items-center justify-center gap-5 text-[clamp(0.85rem,1.1vw,1.1rem)] text-ink/75">
             <span className="flex items-center gap-2">
