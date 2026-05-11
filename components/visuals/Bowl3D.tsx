@@ -7,7 +7,6 @@ import { palette } from "@/lib/palette";
 
 const Z_SCALE = 0.22;
 const HALF = 2.2;
-const PLATFORM_Y = 2.6; // above bowl rim (~1.95)
 
 function bowl(x: number, y: number) {
   return (x * x + y * y) * Z_SCALE;
@@ -97,12 +96,14 @@ function Arrow({
   color,
   delay = 0.3,
   duration = 1.0,
+  onTop = false,
 }: {
   from: [number, number, number];
   to: [number, number, number];
   color: string;
   delay?: number;
   duration?: number;
+  onTop?: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const startRef = useRef<number | null>(null);
@@ -131,33 +132,40 @@ function Arrow({
     const p = Math.max(0, Math.min(1, t / duration));
     groupRef.current.scale.set(p, p, p);
   });
+  const renderOrder = onTop ? 10 : 0;
   return (
     <group ref={groupRef} position={from}>
-      <mesh position={localMid.toArray()} quaternion={quat}>
+      <mesh
+        position={localMid.toArray()}
+        quaternion={quat}
+        renderOrder={renderOrder}
+      >
         <cylinderGeometry args={[0.06, 0.06, Math.max(len - 0.22, 0.01), 16]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.45} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={0.45}
+          depthTest={!onTop}
+          transparent={onTop}
+          opacity={onTop ? 0.92 : 1}
+        />
       </mesh>
-      <mesh position={localTip.toArray()} quaternion={quat}>
+      <mesh
+        position={localTip.toArray()}
+        quaternion={quat}
+        renderOrder={renderOrder}
+      >
         <coneGeometry args={[0.14, 0.28, 20]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.45} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={0.45}
+          depthTest={!onTop}
+          transparent={onTop}
+          opacity={onTop ? 0.92 : 1}
+        />
       </mesh>
     </group>
-  );
-}
-
-function Stem({
-  from,
-  to,
-}: {
-  from: [number, number, number];
-  to: [number, number, number];
-}) {
-  const len = Math.abs(to[1] - from[1]);
-  return (
-    <mesh position={[from[0], (from[1] + to[1]) / 2, from[2]]}>
-      <cylinderGeometry args={[0.02, 0.02, len, 10]} />
-      <meshBasicMaterial color={palette.ink} transparent opacity={0.45} />
-    </mesh>
   );
 }
 
@@ -181,27 +189,31 @@ function PulsePoint({ position }: { position: [number, number, number] }) {
 }
 
 export function Bowl3D({ className }: { className?: string }) {
+  // Sample on the bowl's inner wall. After the 180° scene rotation, the
+  // sample sits on the front-facing wall and the gradient arrow extends
+  // toward the camera over the bowl rim — clearly readable.
   const px = 0.6;
   const py = 1.0;
   const pz = bowl(px, py);
+  const ARROW_LIFT = 0.08;
   const here: [number, number, number] = [px, pz, -py];
-  const armOrigin: [number, number, number] = [px, PLATFORM_Y, -py];
+  const armOrigin: [number, number, number] = [px, pz + ARROW_LIFT, -py];
   const gx = 2 * px;
   const gy = 2 * py;
   const glen = Math.hypot(gx, gy);
   const ux = gx / glen;
   const uy = gy / glen;
-  const reach = 1.0;
+  const reach = 0.9;
   const tip: [number, number, number] = [
     px + ux * reach,
-    PLATFORM_Y,
+    pz + ARROW_LIFT,
     -(py + uy * reach),
   ];
 
   return (
     <div className={className}>
       <Canvas
-        camera={{ position: [4.8, 4.4, 5.6], fov: 38 }}
+        camera={{ position: [4.8, 4.0, 5.8], fov: 38 }}
         style={{ width: "100%", height: "100%" }}
         gl={{ preserveDrawingBuffer: true, antialias: true }}
       >
@@ -210,11 +222,12 @@ export function Bowl3D({ className }: { className?: string }) {
         <directionalLight position={[6, 9, 4]} intensity={1.3} />
         <directionalLight position={[-4, 3, -5]} intensity={0.3} color="#BFDBFE" />
 
-        <Bowl />
-        <BowlContours />
-        <PulsePoint position={here} />
-        <Stem from={here} to={armOrigin} />
-        <Arrow from={armOrigin} to={tip} color={palette.amber} />
+        <group rotation={[0, Math.PI, 0]}>
+          <Bowl />
+          <BowlContours />
+          <PulsePoint position={here} />
+          <Arrow from={armOrigin} to={tip} color={palette.amber} onTop />
+        </group>
       </Canvas>
     </div>
   );

@@ -28,11 +28,6 @@ function fyAt(x: number, y: number) {
   return -2 * B * (y - CY) * (f(x, y) + 0.8);
 }
 
-// Arrows live on a horizontal "platform" above the hill peak (peak ≈ 3.2).
-// A thin stem from the sample dot up to the platform makes it clear the
-// arrows are 2D vectors in the input plane, just lifted for visibility.
-const PLATFORM_Y = 4.2;
-
 function Surface() {
   const geometry = useMemo(() => {
     const seg = 100;
@@ -141,6 +136,7 @@ function Arrow({
   emissive = false,
   delay = 0,
   duration = 0.9,
+  onTop = false,
 }: {
   from: [number, number, number];
   to: [number, number, number];
@@ -150,6 +146,7 @@ function Arrow({
   emissive?: boolean;
   delay?: number;
   duration?: number;
+  onTop?: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const startRef = useRef<number | null>(null);
@@ -179,9 +176,14 @@ function Arrow({
     groupRef.current.scale.set(p, p, p);
   });
   if (len < 0.001) return null;
+  const renderOrder = onTop ? 10 : 0;
   return (
     <group ref={groupRef} position={from}>
-      <mesh position={localMid.toArray()} quaternion={quat}>
+      <mesh
+        position={localMid.toArray()}
+        quaternion={quat}
+        renderOrder={renderOrder}
+      >
         <cylinderGeometry
           args={[thickness, thickness, Math.max(len - headSize, 0.01), 16]}
         />
@@ -190,36 +192,28 @@ function Arrow({
           emissive={emissive ? color : "#000000"}
           emissiveIntensity={emissive ? 0.4 : 0}
           roughness={0.45}
+          depthTest={!onTop}
+          transparent={onTop}
+          opacity={onTop ? 0.92 : 1}
         />
       </mesh>
-      <mesh position={localTip.toArray()} quaternion={quat}>
+      <mesh
+        position={localTip.toArray()}
+        quaternion={quat}
+        renderOrder={renderOrder}
+      >
         <coneGeometry args={[headSize * 0.55, headSize, 20]} />
         <meshStandardMaterial
           color={color}
           emissive={emissive ? color : "#000000"}
           emissiveIntensity={emissive ? 0.4 : 0}
           roughness={0.45}
+          depthTest={!onTop}
+          transparent={onTop}
+          opacity={onTop ? 0.92 : 1}
         />
       </mesh>
     </group>
-  );
-}
-
-function Stem({
-  from,
-  to,
-}: {
-  from: [number, number, number];
-  to: [number, number, number];
-}) {
-  const len = Math.abs(to[1] - from[1]);
-  return (
-    <mesh
-      position={[from[0], (from[1] + to[1]) / 2, from[2]]}
-    >
-      <cylinderGeometry args={[0.018, 0.018, len, 10]} />
-      <meshBasicMaterial color={palette.ink} transparent opacity={0.45} />
-    </mesh>
   );
 }
 
@@ -243,12 +237,18 @@ function PulseSphere({ position }: { position: [number, number, number] }) {
 }
 
 export function Hill3D({ mode, className, interactive = false }: Hill3DProps) {
+  // Sample at (1.4, 1.4) in input space (on the descending side of the
+  // bump). After the scene's 180° Y rotation below, this lands in the
+  // front of the camera; +x and +y partials extend toward the viewer
+  // and read clearly.
   const px = 1.4;
   const py = 1.4;
   const sampleY = f(px, py);
+  const ARROW_LIFT = 0.08;
+  const Yarrow = sampleY + ARROW_LIFT;
 
   const here: [number, number, number] = [px, sampleY, -py];
-  const armOrigin: [number, number, number] = [px, PLATFORM_Y, -py];
+  const armOrigin: [number, number, number] = [px, Yarrow, -py];
 
   const gx = fxAt(px, py);
   const gy = fyAt(px, py);
@@ -256,19 +256,19 @@ export function Hill3D({ mode, className, interactive = false }: Hill3DProps) {
   const ugx = gx / glen;
   const ugy = gy / glen;
 
-  const LEN = 1.0;
-  const fxTip: [number, number, number] = [px + LEN, PLATFORM_Y, -py];
-  const fyTip: [number, number, number] = [px, PLATFORM_Y, -(py + LEN)];
+  const LEN = 1.2;
+  const fxTip: [number, number, number] = [px + LEN, Yarrow, -py];
+  const fyTip: [number, number, number] = [px, Yarrow, -(py + LEN)];
   const gradTip: [number, number, number] = [
     px + ugx * LEN,
-    PLATFORM_Y,
+    Yarrow,
     -(py + ugy * LEN),
   ];
 
   return (
     <div className={className}>
       <Canvas
-        camera={{ position: [5.6, 5.4, 6.0], fov: 38 }}
+        camera={{ position: [5.6, 4.6, 6.0], fov: 38 }}
         style={{ width: "100%", height: "100%" }}
         gl={{ preserveDrawingBuffer: true, antialias: true }}
       >
@@ -278,120 +278,122 @@ export function Hill3D({ mode, className, interactive = false }: Hill3DProps) {
         <directionalLight position={[6, 9, 4]} intensity={1.25} />
         <directionalLight position={[-4, 3, -5]} intensity={0.3} color="#BFDBFE" />
 
-        <Surface />
-        <ContourLines />
+        {/* 180° rotation around Y brings the sample to the camera-facing
+            side of the hill. Without it, the sample (and its arrows) sit
+            behind the bump and read as missing in the still frame. */}
+        <group rotation={[0, Math.PI, 0]}>
+          <Surface />
+          <ContourLines />
 
-        {mode !== "static" && (
-          <>
-            <PulseSphere position={here} />
-            <Stem from={here} to={armOrigin} />
-          </>
-        )}
+          {mode !== "static" && <PulseSphere position={here} />}
 
-        {mode === "many" &&
-          Array.from({ length: 10 }).map((_, i) => {
-            const a = (i / 10) * Math.PI * 2;
-            const tip: [number, number, number] = [
-              px + Math.cos(a) * 0.7,
-              PLATFORM_Y,
-              -(py + Math.sin(a) * 0.7),
-            ];
-            return (
-              <Arrow
-                key={i}
-                from={armOrigin}
-                to={tip}
-                color={palette.slate}
-                thickness={0.025}
-                headSize={0.14}
-              />
-            );
-          })}
-
-        {mode === "best" && (
-          <>
-            {Array.from({ length: 10 }).map((_, i) => {
+          {mode === "many" &&
+            Array.from({ length: 10 }).map((_, i) => {
               const a = (i / 10) * Math.PI * 2;
               const tip: [number, number, number] = [
-                px + Math.cos(a) * 0.65,
-                PLATFORM_Y,
-                -(py + Math.sin(a) * 0.65),
+                px + Math.cos(a) * 0.6,
+                Yarrow,
+                -(py + Math.sin(a) * 0.6),
               ];
               return (
                 <Arrow
                   key={i}
                   from={armOrigin}
                   to={tip}
-                  color="#CBD5E1"
-                  thickness={0.018}
-                  headSize={0.1}
+                  color={palette.slate}
+                  thickness={0.025}
+                  headSize={0.14}
                 />
               );
             })}
-            <Arrow
-              from={armOrigin}
-              to={gradTip}
-              color={palette.amber}
-              thickness={0.055}
-              headSize={0.26}
-              emissive
-            />
-          </>
-        )}
 
-        {mode === "partials" && (
-          <>
-            <Arrow
-              from={armOrigin}
-              to={fxTip}
-              color={palette.teal}
-              thickness={0.07}
-              headSize={0.3}
-              emissive
-              delay={0.2}
-            />
-            <Arrow
-              from={armOrigin}
-              to={fyTip}
-              color="#0F766E"
-              thickness={0.07}
-              headSize={0.3}
-              emissive
-              delay={0.8}
-            />
-          </>
-        )}
+          {mode === "best" && (
+            <>
+              {Array.from({ length: 10 }).map((_, i) => {
+                const a = (i / 10) * Math.PI * 2;
+                const tip: [number, number, number] = [
+                  px + Math.cos(a) * 0.55,
+                  Yarrow,
+                  -(py + Math.sin(a) * 0.55),
+                ];
+                return (
+                  <Arrow
+                    key={i}
+                    from={armOrigin}
+                    to={tip}
+                    color="#CBD5E1"
+                    thickness={0.018}
+                    headSize={0.1}
+                  />
+                );
+              })}
+              <Arrow
+                from={armOrigin}
+                to={gradTip}
+                color={palette.amber}
+                thickness={0.055}
+                headSize={0.26}
+                emissive
+                onTop
+              />
+            </>
+          )}
 
-        {mode === "gradient" && (
-          <>
-            <Arrow
-              from={armOrigin}
-              to={[px + LEN * 0.65, PLATFORM_Y, -py]}
-              color={palette.teal}
-              thickness={0.045}
-              headSize={0.2}
-              delay={0.2}
-            />
-            <Arrow
-              from={armOrigin}
-              to={[px, PLATFORM_Y, -(py + LEN * 0.65)]}
-              color="#0F766E"
-              thickness={0.045}
-              headSize={0.2}
-              delay={0.7}
-            />
-            <Arrow
-              from={armOrigin}
-              to={gradTip}
-              color={palette.amber}
-              thickness={0.075}
-              headSize={0.34}
-              emissive
-              delay={1.2}
-              duration={1.0}
-            />
-          </>
-        )}
+          {mode === "partials" && (
+            <>
+              <Arrow
+                from={armOrigin}
+                to={fxTip}
+                color={palette.teal}
+                thickness={0.07}
+                headSize={0.3}
+                emissive
+                delay={0.2}
+              />
+              <Arrow
+                from={armOrigin}
+                to={fyTip}
+                color="#0F766E"
+                thickness={0.07}
+                headSize={0.3}
+                emissive
+                delay={0.8}
+              />
+            </>
+          )}
+
+          {mode === "gradient" && (
+            <>
+              <Arrow
+                from={armOrigin}
+                to={[px + LEN * 0.65, Yarrow, -py]}
+                color={palette.teal}
+                thickness={0.045}
+                headSize={0.2}
+                delay={0.2}
+              />
+              <Arrow
+                from={armOrigin}
+                to={[px, Yarrow, -(py + LEN * 0.65)]}
+                color="#0F766E"
+                thickness={0.045}
+                headSize={0.2}
+                delay={0.7}
+              />
+              <Arrow
+                from={armOrigin}
+                to={gradTip}
+                color={palette.amber}
+                thickness={0.075}
+                headSize={0.34}
+                emissive
+                delay={1.2}
+                duration={1.0}
+                onTop
+              />
+            </>
+          )}
+        </group>
 
         {interactive && <OrbitControls enablePan={false} />}
       </Canvas>
