@@ -5,45 +5,45 @@ import { forwardRef, type ReactNode } from "react";
 type SlideFrameProps = {
   slideNumber: number;
   totalSlides: number;
+  sectionLabel?: string;
   children: ReactNode;
 };
 
 export const SlideFrame = forwardRef<HTMLDivElement, SlideFrameProps>(
-  function SlideFrame({ slideNumber, totalSlides, children }, ref) {
+  function SlideFrame(
+    { slideNumber, totalSlides, sectionLabel, children },
+    ref
+  ) {
     return (
       <div
         ref={ref}
         data-slide-id={slideNumber}
-        className="relative overflow-hidden rounded-2xl"
+        className="relative overflow-hidden bg-paper"
         style={{
           width: "min(96vw, calc(94vh * 16 / 9))",
           aspectRatio: "16 / 9",
-          background:
-            "radial-gradient(ellipse at top, #FFFFFF 0%, #FBF6EC 60%, #F4EBD8 100%)",
           boxShadow:
-            "0 35px 80px -20px rgba(31,42,68,0.35), 0 8px 24px -8px rgba(31,42,68,0.18)",
+            "0 24px 60px -25px rgba(15, 23, 42, 0.32), 0 6px 18px -12px rgba(15, 23, 42, 0.18)",
+          border: "1px solid #E2D9C2",
         }}
       >
-        {/* subtle inner border */}
-        <div className="pointer-events-none absolute inset-0 rounded-2xl border border-white/40" />
-
-        {/* accent bar */}
-        <div
-          className="absolute top-0 left-0 h-1.5 w-full"
-          style={{
-            background:
-              "linear-gradient(90deg, #F59E0B 0%, #34D399 50%, #0EA5A4 100%)",
-          }}
-        />
-
-        <div className="absolute inset-0 px-14 pt-14 pb-12 flex flex-col">
+        <div className="absolute inset-0 px-16 pt-12 pb-12 flex flex-col">
           {children}
         </div>
 
-        {/* slide number — bottom right */}
-        <div className="pointer-events-none absolute bottom-5 right-7 text-sm font-semibold text-ink/35 tracking-[0.18em]">
-          {String(slideNumber).padStart(2, "0")}
-          <span className="opacity-50"> / {String(totalSlides).padStart(2, "0")}</span>
+        {/* footer rule */}
+        <div className="absolute bottom-0 left-16 right-16 h-px bg-[#E2D9C2]" />
+
+        {/* footer text */}
+        <div className="absolute bottom-3 left-16 right-16 flex items-center justify-between text-[11px] uppercase tracking-[0.22em] text-ink/45 font-semibold">
+          <span>Multivariable Calculus · The Gradient</span>
+          {sectionLabel ? (
+            <span className="text-ink/55">{sectionLabel}</span>
+          ) : null}
+          <span>
+            {String(slideNumber).padStart(2, "0")} ·{" "}
+            <span className="opacity-50">{String(totalSlides).padStart(2, "0")}</span>
+          </span>
         </div>
       </div>
     );

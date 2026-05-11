@@ -1,66 +1,64 @@
 "use client";
 
 import { Bowl3D } from "@/components/visuals/Bowl3D";
-import { Eyebrow, Headline, Lede } from "@/components/Type";
-import { motion } from "framer-motion";
+import { SectionLabel, Title, Mono } from "@/components/Type";
 
 export default function Slide09Example() {
   return (
     <div className="h-full flex flex-col gap-5">
-      <div className="flex flex-col gap-2">
-        <Eyebrow>Example</Eyebrow>
-        <Headline>
-          A simple bowl: <span className="font-mono">f(x, y) = x² + y²</span>
-        </Headline>
-        <Lede>
-          At the point (1, 2), the gradient tells us which way the function
-          climbs fastest.
-        </Lede>
+      <div>
+        <SectionLabel>09 · Practice</SectionLabel>
+        <Title>
+          Worked example: <Mono>f(x, y) = x² + y²</Mono>
+        </Title>
       </div>
-      <div className="flex-1 grid grid-cols-[3fr_2fr] gap-6 min-h-0">
-        <div className="rounded-2xl border border-slate-200/60 overflow-hidden bg-paper">
-          <Bowl3D className="w-full h-full min-h-[360px]" />
+
+      <div className="flex-1 grid grid-cols-[6fr_5fr] gap-8 min-h-0">
+        <div className="rounded-lg border border-[#E5DCC4] bg-paper overflow-hidden min-h-0">
+          <Bowl3D className="w-full h-full" />
         </div>
-        <div className="flex flex-col gap-4 justify-center">
-          <motion.div
-            initial={{ opacity: 0, x: 12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="rounded-2xl bg-paper border border-slate-200/60 p-5"
-          >
-            <p className="text-sm uppercase tracking-[0.18em] text-ink/55 font-bold mb-2">
-              function
-            </p>
-            <p className="font-mono text-[clamp(1.5rem,2.4vw,2.6rem)] text-ink font-semibold">
+
+        <div className="flex flex-col gap-3 min-h-0">
+          <div className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-3 items-baseline">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-ink/55 font-semibold">step 1</p>
+            <p className="font-mono whitespace-nowrap text-[clamp(1.05rem,1.5vw,1.5rem)] text-ink">
               f(x, y) = x² + y²
             </p>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, x: 12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.35 }}
-            className="rounded-2xl bg-paper border-2 border-teal/40 p-5"
-          >
-            <p className="text-sm uppercase tracking-[0.18em] text-teal font-bold mb-2">
-              gradient
+
+            <p className="text-[11px] uppercase tracking-[0.22em] text-teal font-semibold">step 2 · f<sub>x</sub></p>
+            <p className="font-mono whitespace-nowrap text-[clamp(1.05rem,1.5vw,1.5rem)] text-ink">
+              ∂f/∂x = 2x
             </p>
-            <p className="font-mono text-[clamp(1.5rem,2.4vw,2.6rem)] text-ink font-semibold">
-              ∇f = ⟨2x, 2y⟩
+
+            <p className="text-[11px] uppercase tracking-[0.22em] font-semibold" style={{ color: "#0F766E" }}>step 3 · f<sub>y</sub></p>
+            <p className="font-mono whitespace-nowrap text-[clamp(1.05rem,1.5vw,1.5rem)] text-ink">
+              ∂f/∂y = 2y
             </p>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.55, delay: 0.6 }}
-            className="rounded-2xl bg-amber/12 border-2 border-amber p-6 shadow-lg"
-          >
-            <p className="text-sm uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#B45309" }}>
-              at the point (1, 2)
+
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber font-semibold" style={{ color: "#B45309" }}>step 4 · ∇f</p>
+            <p className="font-mono whitespace-nowrap text-[clamp(1.05rem,1.5vw,1.5rem)] text-ink">
+              ∇f = ⟨ 2x, 2y ⟩
             </p>
-            <p className="font-mono text-[clamp(1.8rem,3vw,3.2rem)] text-ink font-bold">
-              ∇f(1, 2) = ⟨2, 4⟩
+          </div>
+
+          <div className="mt-2 rounded-lg border-l-[4px] border-amber bg-paper px-4 py-3">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-ink/55 font-semibold">
+              evaluate at (1, 2)
             </p>
-          </motion.div>
+            <p className="font-mono whitespace-nowrap text-[clamp(1.3rem,2vw,2rem)] text-ink font-bold leading-tight">
+              ∇f(1, 2) = ⟨ 2, 4 ⟩
+            </p>
+            <p className="text-[clamp(0.85rem,1.05vw,1.1rem)] text-ink/70 mt-1">
+              The arrow above lies in the input plane along this direction.
+              Its length, <Mono>|∇f| = √20 ≈ 4.47</Mono>, is the slope of the
+              steepest path leaving (1, 2).
+            </p>
+          </div>
+
+          <ul className="text-[clamp(0.85rem,1.05vw,1.1rem)] text-ink/75 space-y-1.5 mt-1">
+            <li>· The gradient points <em>away</em> from the bowl&rsquo;s minimum at the origin.</li>
+            <li>· To descend, follow <Mono>−∇f</Mono> — the basis of gradient descent.</li>
+          </ul>
         </div>
       </div>
     </div>

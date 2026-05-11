@@ -1,58 +1,74 @@
 "use client";
 
 import { Hill3D } from "@/components/visuals/Hill3D";
-import { Eyebrow, Headline } from "@/components/Type";
-import { palette } from "@/lib/palette";
+import { SectionLabel, Title, BulletList, Mono } from "@/components/Type";
 
 export default function Slide06Partials() {
   return (
     <div className="h-full flex flex-col gap-5">
-      <div className="flex flex-col gap-2">
-        <Eyebrow>Step 1</Eyebrow>
-        <Headline>
-          Measure the slope in the <span className="text-teal">basic directions</span>.
-        </Headline>
+      <div>
+        <SectionLabel>06 · Definitions</SectionLabel>
+        <Title>Partial derivatives are the building blocks.</Title>
       </div>
-      <div className="flex-1 grid grid-cols-[3fr_2fr] gap-6 min-h-0">
-        <div className="rounded-2xl border border-slate-200/60 overflow-hidden bg-paper">
-          <Hill3D mode="partials" className="w-full h-full min-h-[360px]" rotate />
+
+      <div className="flex-1 grid grid-cols-[5fr_6fr] gap-8 min-h-0">
+        <div className="flex flex-col gap-4 min-h-0">
+          <BulletList
+            items={[
+              <>
+                <strong>Idea:</strong> change only one input at a time, hold
+                the others constant, then take the ordinary derivative.
+              </>,
+              <>
+                <Mono>∂f/∂x = f<sub>x</sub></Mono> = derivative with respect
+                to <Mono>x</Mono>, treating <Mono>y</Mono> as a constant.
+              </>,
+              <>
+                <Mono>∂f/∂y = f<sub>y</sub></Mono> = derivative with respect
+                to <Mono>y</Mono>, treating <Mono>x</Mono> as a constant.
+              </>,
+              <>
+                <strong>Geometry:</strong> slice the surface with a plane
+                parallel to the chosen axis; the partial is the slope of that
+                slice through the point.
+              </>,
+              <>
+                Tiny worked example — <Mono>f(x, y) = x²y + 3y</Mono>:
+                <ul className="ml-4 mt-1 space-y-0.5">
+                  <li>· <Mono>f<sub>x</sub> = 2xy</Mono> &nbsp; (y is constant)</li>
+                  <li>· <Mono>f<sub>y</sub> = x² + 3</Mono> &nbsp; (x is constant)</li>
+                </ul>
+              </>,
+              <>
+                Each partial answers <em>one</em> coordinate question. They
+                will combine to answer the full directional question.
+              </>,
+            ]}
+          />
         </div>
-        <div className="flex flex-col gap-5 justify-center">
-          <div className="rounded-2xl bg-paper border-2 border-teal/40 p-6">
-            <div className="flex items-center gap-4 mb-3">
-              <span
-                aria-hidden
-                className="inline-block w-10 h-3 rounded-full"
-                style={{ background: palette.teal }}
-              />
-              <p className="font-mono text-[clamp(2rem,3.2vw,3.4rem)] text-teal font-bold">
+
+        <div className="flex flex-col gap-3 min-h-0">
+          <div className="flex-1 rounded-lg border border-[#E5DCC4] bg-paper overflow-hidden min-h-0">
+            <Hill3D mode="partials" className="w-full h-full" rotate={false} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-md border border-[#E5DCC4] bg-paper p-3 text-center">
+              <p className="font-mono text-[clamp(1.4rem,2.2vw,2.2rem)] text-teal font-bold leading-none">
                 f<sub>x</sub>
               </p>
-            </div>
-            <p className="text-[clamp(1rem,1.3vw,1.4rem)] text-ink/80 leading-snug">
-              How the surface changes if we move <em>only</em> in the{" "}
-              <strong>x direction</strong>.
-            </p>
-          </div>
-          <div className="rounded-2xl bg-paper border-2 p-6" style={{ borderColor: "#0F766E66" }}>
-            <div className="flex items-center gap-4 mb-3">
-              <span
-                aria-hidden
-                className="inline-block w-10 h-3 rounded-full"
-                style={{ background: "#0F766E" }}
-              />
-              <p className="font-mono text-[clamp(2rem,3.2vw,3.4rem)] font-bold" style={{ color: "#0F766E" }}>
-                f<sub>y</sub>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-ink/55 mt-1">
+                along +x · y fixed
               </p>
             </div>
-            <p className="text-[clamp(1rem,1.3vw,1.4rem)] text-ink/80 leading-snug">
-              How the surface changes if we move <em>only</em> in the{" "}
-              <strong>y direction</strong>.
-            </p>
+            <div className="rounded-md border border-[#E5DCC4] bg-paper p-3 text-center">
+              <p className="font-mono text-[clamp(1.4rem,2.2vw,2.2rem)] font-bold leading-none" style={{ color: "#0F766E" }}>
+                f<sub>y</sub>
+              </p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-ink/55 mt-1">
+                along +y · x fixed
+              </p>
+            </div>
           </div>
-          <p className="text-base text-ink/55 italic px-2">
-            These two directional slopes are called <strong>partial derivatives</strong>.
-          </p>
         </div>
       </div>
     </div>

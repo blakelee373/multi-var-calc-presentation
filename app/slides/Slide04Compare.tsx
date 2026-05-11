@@ -2,48 +2,49 @@
 
 import { CurveXY } from "@/components/visuals/CurveXY";
 import { Hill3D } from "@/components/visuals/Hill3D";
-import { Eyebrow, Headline } from "@/components/Type";
+import { SectionLabel, Title, Mono } from "@/components/Type";
 
 export default function Slide04Compare() {
   return (
     <div className="h-full flex flex-col gap-5">
-      <div className="flex flex-col gap-2">
-        <Eyebrow>The big shift</Eyebrow>
-        <Headline>
-          One direction <span className="text-ink/35">vs.</span>{" "}
-          <span className="text-amber">many directions</span>.
-        </Headline>
+      <div>
+        <SectionLabel>04 · Setup</SectionLabel>
+        <Title>From one input to several.</Title>
       </div>
-      <div className="flex-1 grid grid-cols-2 gap-6 min-h-0">
-        <div className="rounded-2xl border border-teal/30 bg-paper p-6 flex flex-col">
-          <div className="flex items-baseline justify-between mb-2">
-            <p className="text-base uppercase tracking-[0.22em] text-teal font-bold">
-              single-variable
-            </p>
-            <span className="font-mono text-2xl text-teal">y = f(x)</span>
-          </div>
-          <p className="text-[clamp(0.95rem,1.2vw,1.25rem)] text-ink/70 mb-3">
-            One input. One direction of motion.
+
+      <div className="flex-1 grid grid-cols-2 gap-8 min-h-0">
+        <div className="rounded-lg border border-[#E5DCC4] bg-paper p-5 flex flex-col">
+          <p className="text-[11px] uppercase tracking-[0.22em] text-teal font-bold mb-1">
+            single-variable
           </p>
-          <div className="flex-1 grid place-items-center min-h-0">
-            <CurveXY className="w-full max-w-2xl" />
+          <p className="font-mono text-[clamp(1.25rem,1.8vw,1.85rem)] text-ink whitespace-nowrap">
+            f : ℝ → ℝ &nbsp;·&nbsp; y = f(x)
+          </p>
+          <div className="flex-1 grid place-items-center min-h-0 my-2">
+            <CurveXY className="w-full" />
           </div>
+          <ul className="space-y-1.5 text-[clamp(0.85rem,1.05vw,1.05rem)] text-ink/80">
+            <li>· Domain is a line; graph lives in the plane (ℝ²).</li>
+            <li>· One direction of motion: ±x.</li>
+            <li>· One derivative <Mono>f′(x)</Mono> captures everything about rate of change.</li>
+          </ul>
         </div>
-        <div className="rounded-2xl border border-amber/40 bg-paper p-6 flex flex-col">
-          <div className="flex items-baseline justify-between mb-2">
-            <p className="text-base uppercase tracking-[0.22em] text-amber font-bold">
-              multivariable
-            </p>
-            <span className="font-mono text-2xl text-amberDeep" style={{ color: "#B45309" }}>
-              z = f(x, y)
-            </span>
-          </div>
-          <p className="text-[clamp(0.95rem,1.2vw,1.25rem)] text-ink/70 mb-3">
-            Multiple inputs. <em>Many</em> possible directions.
+
+        <div className="rounded-lg border border-[#E5DCC4] bg-paper p-5 flex flex-col">
+          <p className="text-[11px] uppercase tracking-[0.22em] text-amber font-bold mb-1" style={{ color: "#B45309" }}>
+            multivariable
           </p>
-          <div className="flex-1 min-h-[240px] rounded-xl overflow-hidden">
+          <p className="font-mono text-[clamp(1.25rem,1.8vw,1.85rem)] text-ink whitespace-nowrap">
+            f : ℝ² → ℝ &nbsp;·&nbsp; z = f(x, y)
+          </p>
+          <div className="flex-1 min-h-[200px] rounded-md overflow-hidden my-2">
             <Hill3D mode="many" className="w-full h-full" rotate />
           </div>
+          <ul className="space-y-1.5 text-[clamp(0.85rem,1.05vw,1.05rem)] text-ink/80">
+            <li>· Domain is a plane; graph is a surface in ℝ³.</li>
+            <li>· From any point, <em>infinitely</em> many directions of motion.</li>
+            <li>· One number <Mono>f′</Mono> can&rsquo;t describe all of them — we need a richer object.</li>
+          </ul>
         </div>
       </div>
     </div>

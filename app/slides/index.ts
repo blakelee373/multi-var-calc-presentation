@@ -13,18 +13,19 @@ import Slide10Recap from "./Slide10Recap";
 export type SlideMeta = {
   slug: string;
   title: string;
+  section: string;
   Component: ComponentType;
 };
 
 export const slides: SlideMeta[] = [
-  { slug: "title", title: "Why we need a 3D compass", Component: Slide01Title },
-  { slug: "one-path", title: "Normal calculus: one path", Component: Slide02Path },
-  { slug: "the-problem", title: "The problem: more than one route", Component: Slide03Problem },
-  { slug: "compare", title: "One variable vs. many", Component: Slide04Compare },
-  { slug: "3d-compass", title: "A 3D compass", Component: Slide05Compass },
-  { slug: "partials", title: "Partial derivatives", Component: Slide06Partials },
-  { slug: "gradient", title: "The gradient", Component: Slide07Gradient },
-  { slug: "contour", title: "Contour map view", Component: Slide08Contour },
-  { slug: "example", title: "Example: f = x² + y²", Component: Slide09Example },
-  { slug: "recap", title: "Final takeaway", Component: Slide10Recap },
+  { slug: "title",       title: "Multivariable calculus & the gradient", section: "Cover",          Component: Slide01Title },
+  { slug: "single-var",  title: "Single-variable calculus",              section: "Foundations",    Component: Slide02Path },
+  { slug: "problem",     title: "Why one direction isn't enough",        section: "Motivation",     Component: Slide03Problem },
+  { slug: "many",        title: "From one input to several",             section: "Setup",          Component: Slide04Compare },
+  { slug: "directions",  title: "Direction of fastest increase",         section: "Concept",        Component: Slide05Compass },
+  { slug: "partials",    title: "Partial derivatives",                   section: "Definitions",    Component: Slide06Partials },
+  { slug: "gradient",    title: "The gradient ∇f",                       section: "Definition",     Component: Slide07Gradient },
+  { slug: "contour",     title: "Reading contour maps",                  section: "Geometry",       Component: Slide08Contour },
+  { slug: "example",     title: "Worked example",                        section: "Practice",       Component: Slide09Example },
+  { slug: "recap",       title: "Summary",                               section: "Recap",          Component: Slide10Recap },
 ];

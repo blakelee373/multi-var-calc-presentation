@@ -3,42 +3,34 @@
 import { MountainScene } from "@/components/visuals/MountainScene";
 import { Character } from "@/components/visuals/Character";
 import { CompassIcon } from "@/components/visuals/CompassIcon";
-import { Eyebrow, Display } from "@/components/Type";
-import { motion } from "framer-motion";
+import { DisplayTitle, SectionLabel } from "@/components/Type";
 
 export default function Slide01Title() {
   return (
     <div className="h-full grid grid-cols-[5fr_6fr] gap-10 items-center">
       <div className="flex flex-col gap-7">
-        <Eyebrow>A short story</Eyebrow>
-        <Display>
-          Multivariable
+        <SectionLabel>An introduction</SectionLabel>
+        <DisplayTitle>
+          Multivariable calculus
           <br />
-          Calculus.
-          <br />
-          <span className="text-amber">A 3D compass.</span>
-        </Display>
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="text-[clamp(1.15rem,1.65vw,1.75rem)] text-ink/70 leading-snug max-w-[44ch]"
-        >
-          How calculus changes when the world has{" "}
-          <span className="text-ink font-semibold">more than one direction</span>.
-        </motion.p>
+          <span className="text-amber">&amp; the gradient.</span>
+        </DisplayTitle>
+        <p className="text-[clamp(1.05rem,1.4vw,1.55rem)] text-ink/70 leading-snug max-w-[44ch]">
+          When a function depends on more than one input, the question
+          <em> &ldquo;how fast does it change?&rdquo;</em> stops having a single
+          answer. This deck builds intuition for what we do instead.
+        </p>
+        <div className="flex flex-col gap-1 mt-2 text-[clamp(0.85rem,1vw,1.05rem)] text-ink/55 leading-snug">
+          <span>10 slides · roughly 8 minutes</span>
+          <span>Audience: prior exposure to single-variable calculus helpful but not required.</span>
+        </div>
       </div>
       <div className="relative h-full flex items-end justify-center">
         <MountainScene variant="intro" className="w-full" />
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="absolute left-4 bottom-2 flex items-end gap-4"
-        >
-          <Character size={150} pose="thinking" />
-          <CompassIcon size={110} wiggle />
-        </motion.div>
+        <div className="absolute left-3 bottom-2 flex items-end gap-4">
+          <Character size={138} pose="thinking" />
+          <CompassIcon size={100} wiggle />
+        </div>
       </div>
     </div>
   );

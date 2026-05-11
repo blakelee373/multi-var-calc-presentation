@@ -8,34 +8,35 @@ type ArrowFieldProps = {
   className?: string;
 };
 
-export function ArrowField({ count = 10, className }: ArrowFieldProps) {
-  const cx = 140;
-  const cy = 140;
-  const r = 92;
+export function ArrowField({ count = 12, className }: ArrowFieldProps) {
+  const cx = 200;
+  const cy = 200;
+  const r = 110;
   const bestIndex = 1;
   return (
-    <svg viewBox="0 0 280 280" className={className} aria-hidden>
+    <svg viewBox="0 0 400 400" className={className} aria-hidden>
       <defs>
         <radialGradient id="afGlow" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0%" stopColor={palette.amber} stopOpacity="0.35" />
+          <stop offset="0%" stopColor={palette.amber} stopOpacity="0.28" />
           <stop offset="100%" stopColor={palette.amber} stopOpacity="0" />
         </radialGradient>
       </defs>
-      <circle cx={cx} cy={cy} r={r + 30} fill="url(#afGlow)" />
+
+      <circle cx={cx} cy={cy} r={r + 40} fill="url(#afGlow)" />
       <circle cx={cx} cy={cy} r="9" fill={palette.ink} />
       <circle cx={cx} cy={cy} r="4" fill={palette.amber} />
 
       {Array.from({ length: count }).map((_, i) => {
         const a = (i / count) * Math.PI * 2 - Math.PI / 2;
         const isBest = i === bestIndex;
-        const len = isBest ? r + 8 : r - 6;
+        const len = isBest ? r + 10 : r - 8;
         const ex = cx + Math.cos(a) * len;
         const ey = cy + Math.sin(a) * len;
         return (
           <motion.g
             key={i}
             initial={{ opacity: 0, scale: 0.4 }}
-            animate={{ opacity: isBest ? 1 : 0.3, scale: 1 }}
+            animate={{ opacity: isBest ? 1 : 0.32, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.05 * i }}
           >
             <line
@@ -44,11 +45,11 @@ export function ArrowField({ count = 10, className }: ArrowFieldProps) {
               x2={ex}
               y2={ey}
               stroke={isBest ? palette.amber : palette.slate}
-              strokeWidth={isBest ? 6 : 2.2}
+              strokeWidth={isBest ? 7 : 2.4}
               strokeLinecap="round"
             />
             <polygon
-              points={`${ex},${ey} ${ex - Math.cos(a - 0.4) * 14},${ey - Math.sin(a - 0.4) * 14} ${ex - Math.cos(a + 0.4) * 14},${ey - Math.sin(a + 0.4) * 14}`}
+              points={`${ex},${ey} ${ex - Math.cos(a - 0.4) * 16},${ey - Math.sin(a - 0.4) * 16} ${ex - Math.cos(a + 0.4) * 16},${ey - Math.sin(a + 0.4) * 16}`}
               fill={isBest ? palette.amber : palette.slate}
             />
           </motion.g>
@@ -56,16 +57,31 @@ export function ArrowField({ count = 10, className }: ArrowFieldProps) {
       })}
 
       <motion.text
-        x={cx + 78}
-        y={cy - 60}
-        fontSize="14"
-        fontWeight="800"
+        x={cx}
+        y={35}
+        textAnchor="middle"
+        fontSize="16"
+        fontWeight="700"
+        letterSpacing="2"
         fill={palette.amberDeep}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.9 }}
       >
-        ▲ best uphill
+        STEEPEST DIRECTION
+      </motion.text>
+      <motion.text
+        x={cx}
+        y={385}
+        textAnchor="middle"
+        fontSize="13"
+        fill={palette.ink}
+        opacity="0.65"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.65 }}
+        transition={{ delay: 1.0 }}
+      >
+        candidate directions from a single point
       </motion.text>
     </svg>
   );

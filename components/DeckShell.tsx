@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SlideFrame } from "./SlideFrame";
 import { ExportButton } from "./ExportButton";
+import { ExportGifButton } from "./ExportGifButton";
 import { slides } from "@/app/slides";
 
 export function DeckShell() {
@@ -63,10 +64,16 @@ export function DeckShell() {
         >
           {railOpen ? "Hide outline" : "Outline"}
         </button>
-        <ExportButton
-          targetRef={slideRef}
-          filename={`slide-${String(index + 1).padStart(2, "0")}-${meta.slug}.png`}
-        />
+        <div className="flex items-center gap-2">
+          <ExportGifButton
+            targetRef={slideRef}
+            filename={`slide-${String(index + 1).padStart(2, "0")}-${meta.slug}.gif`}
+          />
+          <ExportButton
+            targetRef={slideRef}
+            filename={`slide-${String(index + 1).padStart(2, "0")}-${meta.slug}.png`}
+          />
+        </div>
       </div>
 
       {/* Slide */}
@@ -83,6 +90,7 @@ export function DeckShell() {
             ref={slideRef}
             slideNumber={index + 1}
             totalSlides={total}
+            sectionLabel={meta.section}
           >
             <Active />
           </SlideFrame>

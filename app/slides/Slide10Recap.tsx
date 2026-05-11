@@ -3,68 +3,65 @@
 import { MountainScene } from "@/components/visuals/MountainScene";
 import { Character } from "@/components/visuals/Character";
 import { CompassIcon } from "@/components/visuals/CompassIcon";
-import { Eyebrow, Display } from "@/components/Type";
-import { motion } from "framer-motion";
+import { SectionLabel, Title, Mono } from "@/components/Type";
 
 const points = [
   {
-    color: "text-teal",
-    label: "Normal calculus",
-    body: "studies change along a path.",
+    label: "Generalize derivatives",
+    body: "Partial derivatives ∂f/∂x and ∂f/∂y extend the single-variable derivative one axis at a time.",
   },
   {
-    color: "text-teal",
-    label: "Multivariable calculus",
-    body: "studies change on a surface.",
+    label: "Assemble into a vector",
+    body: "The gradient ∇f = ⟨fx, fy⟩ packages both partials into a single object that lives at every point.",
   },
   {
-    color: "text-amber",
-    label: "The gradient",
-    body: "is the 3D compass — it points uphill, fastest.",
+    label: "Direction & magnitude",
+    body: "∇f points the way f increases fastest. Its length is that fastest rate of change.",
+  },
+  {
+    label: "Geometry on contour maps",
+    body: "∇f is perpendicular to level curves; tight contours mean a large gradient — steep terrain.",
+  },
+  {
+    label: "Where it goes next",
+    body: "Critical points (∇f = 0), gradient descent in ML, Lagrange multipliers, the Jacobian for vector-valued functions.",
   },
 ];
 
 export default function Slide10Recap() {
   return (
-    <div className="h-full grid grid-cols-[5fr_6fr] gap-10 items-center">
-      <div className="flex flex-col gap-6">
-        <Eyebrow>The takeaway</Eyebrow>
-        <Display>
-          One compass for a <span className="text-amber">3D world.</span>
-        </Display>
-        <ul className="space-y-4 mt-3">
+    <div className="h-full grid grid-cols-[6fr_5fr] gap-10 items-start">
+      <div className="flex flex-col gap-5">
+        <SectionLabel>10 · Summary</SectionLabel>
+        <Title>The whole story in five lines.</Title>
+        <ol className="mt-2 space-y-3.5">
           {points.map((p, i) => (
-            <motion.li
-              key={p.label}
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 + i * 0.2 }}
-              className="flex gap-4 items-start"
-            >
-              <span className={`${p.color} font-bold text-2xl leading-none mt-1`}>→</span>
-              <span className="text-[clamp(1.1rem,1.5vw,1.6rem)] text-ink/85 leading-snug">
-                <strong className="text-ink">{p.label}</strong> {p.body}
+            <li key={p.label} className="flex gap-4">
+              <span className="shrink-0 w-7 text-right text-amber font-bold text-[clamp(0.95rem,1.18vw,1.15rem)] leading-snug">
+                {String(i + 1).padStart(2, "0")}
               </span>
-            </motion.li>
+              <span className="text-[clamp(0.95rem,1.18vw,1.2rem)] text-ink/85 leading-snug">
+                <strong className="text-ink">{p.label}.</strong> {p.body}
+              </span>
+            </li>
           ))}
-        </ul>
+        </ol>
+        <p className="text-[clamp(0.85rem,1vw,1.05rem)] text-ink/55 italic mt-1">
+          One sentence to keep: <Mono>∇f</Mono> is the 3D compass for change —
+          it tells you which way is uphill and how steep it is.
+        </p>
       </div>
       <div className="relative h-full flex items-end justify-center">
         <MountainScene variant="victory" className="w-full" />
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="absolute left-4 bottom-2 flex items-end gap-4"
-        >
-          <Character size={160} pose="confident" />
+        <div className="absolute left-3 bottom-2 flex items-end gap-4">
+          <Character size={150} pose="confident" />
           <div className="relative">
             <div className="absolute -top-3 -left-3 opacity-30">
               <CompassIcon size={72} faded />
             </div>
-            <CompassIcon size={120} glowing />
+            <CompassIcon size={114} glowing />
           </div>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

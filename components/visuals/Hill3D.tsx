@@ -15,6 +15,7 @@ type Hill3DProps = {
   rotate?: boolean;
 };
 
+// f(x, y) = A * exp(-B * ((x-CX)^2 + (y-CY)^2)) - 0.8
 const A = 4;
 const B = 0.6;
 const CX = 0.4;
@@ -27,6 +28,14 @@ function fx(x: number, y: number) {
 }
 function fy(x: number, y: number) {
   return -2 * B * (y - CY) * (f(x, y) + 0.8);
+}
+
+// Surface is rotated -π/2 around X, so:
+//   input-x  → world +x
+//   input-y  → world -z
+//   height z → world +y
+function toWorld(xIn: number, yIn: number): [number, number, number] {
+  return [xIn, f(xIn, yIn), -yIn];
 }
 
 function Surface() {
@@ -45,9 +54,10 @@ function Surface() {
       const z = f(x, y);
       pos.setZ(i, z);
       const t = THREE.MathUtils.clamp((z + 0.8) / (A + 0.8), 0, 1);
-      const c = t < 0.5
-        ? cBot.clone().lerp(cMid, t * 2)
-        : cMid.clone().lerp(cTop, (t - 0.5) * 2);
+      const c =
+        t < 0.5
+          ? cBot.clone().lerp(cMid, t * 2)
+          : cMid.clone().lerp(cTop, (t - 0.5) * 2);
       colors[i * 3] = c.r;
       colors[i * 3 + 1] = c.g;
       colors[i * 3 + 2] = c.b;
@@ -57,7 +67,7 @@ function Surface() {
     return geo;
   }, []);
   return (
-    <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} receiveShadow castShadow>
+    <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]}>
       <meshStandardMaterial
         vertexColors
         flatShading={false}
@@ -77,7 +87,6 @@ function ContourLines() {
     const step = (range * 2) / grid;
     for (const level of levels) {
       const segments: THREE.Vector3[] = [];
-      // marching squares
       for (let i = 0; i < grid; i++) {
         for (let j = 0; j < grid; j++) {
           const x0 = -range + i * step;
@@ -89,41 +98,43 @@ function ContourLines() {
           const v11 = f(x1, y1) - level;
           const v01 = f(x0, y1) - level;
           const edges: THREE.Vector3[] = [];
-          function add(a: number, b: number, ax: number, ay: number, bx: number, by: number) {
+          function add(
+            a: number,
+            b: number,
+            ax: number,
+            ay: number,
+            bx: number,
+            by: number
+          ) {
             if ((a < 0) !== (b < 0)) {
               const t = a / (a - b);
-              edges.push(new THREE.Vector3(
-                ax + (bx - ax) * t,
-                level + 0.01,
-                -(ay + (by - ay) * t)
-              ));
+              edges.push(
+                new THREE.Vector3(
+                  ax + (bx - ax) * t,
+                  level + 0.01,
+                  -(ay + (by - ay) * t)
+                )
+              );
             }
           }
           add(v00, v10, x0, y0, x1, y0);
           add(v10, v11, x1, y0, x1, y1);
           add(v11, v01, x1, y1, x0, y1);
           add(v01, v00, x0, y1, x0, y0);
-          if (edges.length === 2) {
-            segments.push(edges[0], edges[1]);
-          }
+          if (edges.length === 2) segments.push(edges[0], edges[1]);
         }
       }
       result.push({ points: segments });
     }
     return result;
   }, []);
-
   return (
     <group>
       {lines.map((l, idx) => {
         const geom = new THREE.BufferGeometry().setFromPoints(l.points);
         return (
           <lineSegments key={idx} geometry={geom}>
-            <lineBasicMaterial
-              color={palette.ink}
-              transparent
-              opacity={0.18}
-            />
+            <lineBasicMaterial color={palette.ink} transparent opacity={0.18} />
           </lineSegments>
         );
       })}
@@ -135,8 +146,8 @@ function Arrow({
   from,
   to,
   color,
-  thickness = 0.045,
-  headSize = 0.2,
+  thickness = 0.05,
+  headSize = 0.22,
   emissive = false,
 }: {
   from: [number, number, number];
@@ -150,18 +161,24 @@ function Arrow({
   const v2 = new THREE.Vector3(...to);
   const dir = v2.clone().sub(v1);
   const len = dir.length();
+  if (len < 0.001) return null;
   const mid = v1.clone().add(dir.clone().multiplyScalar(0.5));
   const up = new THREE.Vector3(0, 1, 0);
-  const quat = new THREE.Quaternion().setFromUnitVectors(up, dir.clone().normalize());
+  const quat = new THREE.Quaternion().setFromUnitVectors(
+    up,
+    dir.clone().normalize()
+  );
   return (
     <group>
       <mesh position={mid.toArray()} quaternion={quat}>
-        <cylinderGeometry args={[thickness, thickness, Math.max(len - headSize, 0.01), 16]} />
+        <cylinderGeometry
+          args={[thickness, thickness, Math.max(len - headSize, 0.01), 16]}
+        />
         <meshStandardMaterial
           color={color}
           emissive={emissive ? color : "#000000"}
-          emissiveIntensity={emissive ? 0.45 : 0}
-          roughness={0.4}
+          emissiveIntensity={emissive ? 0.4 : 0}
+          roughness={0.45}
         />
       </mesh>
       <mesh position={v2.toArray()} quaternion={quat}>
@@ -169,27 +186,53 @@ function Arrow({
         <meshStandardMaterial
           color={color}
           emissive={emissive ? color : "#000000"}
-          emissiveIntensity={emissive ? 0.45 : 0}
-          roughness={0.4}
+          emissiveIntensity={emissive ? 0.4 : 0}
+          roughness={0.45}
         />
       </mesh>
     </group>
   );
 }
 
-function originAt(x: number, y: number): [number, number, number] {
-  return [x, f(x, y) + 0.06, -y];
-}
-
-function offset(
-  origin: [number, number, number],
-  dx: number,
-  dz: number,
-  scale = 0.7
-): [number, number, number] {
-  const x = origin[0] + dx * scale;
-  const yw = -origin[2] + dz * scale;
-  return [x, f(x, yw) + 0.06, -yw];
+function AxisLabel({
+  position,
+  text,
+  color,
+}: {
+  position: [number, number, number];
+  text: string;
+  color: string;
+}) {
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame(({ camera }) => {
+    if (ref.current) ref.current.lookAt(camera.position);
+  });
+  const canvas = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = 256;
+    c.height = 256;
+    const ctx = c.getContext("2d");
+    if (ctx) {
+      ctx.clearRect(0, 0, 256, 256);
+      ctx.fillStyle = color;
+      ctx.font = "bold 156px Inter, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, 128, 128);
+    }
+    return c;
+  }, [color, text]);
+  const texture = useMemo(() => {
+    const t = new THREE.CanvasTexture(canvas);
+    t.needsUpdate = true;
+    return t;
+  }, [canvas]);
+  return (
+    <mesh ref={ref} position={position}>
+      <planeGeometry args={[0.55, 0.55]} />
+      <meshBasicMaterial map={texture} transparent />
+    </mesh>
+  );
 }
 
 function AutoRotate({
@@ -201,9 +244,7 @@ function AutoRotate({
 }) {
   const ref = useRef<THREE.Group>(null);
   useFrame((_, dt) => {
-    if (ref.current && enabled) {
-      ref.current.rotation.y += dt * 0.12;
-    }
+    if (ref.current && enabled) ref.current.rotation.y += dt * 0.12;
   });
   return <group ref={ref}>{children}</group>;
 }
@@ -217,7 +258,7 @@ function PulseSphere({ position }: { position: [number, number, number] }) {
   });
   return (
     <mesh ref={ref} position={position}>
-      <sphereGeometry args={[0.14, 24, 24]} />
+      <sphereGeometry args={[0.13, 24, 24]} />
       <meshStandardMaterial
         color={palette.ink}
         emissive={palette.amber}
@@ -233,14 +274,39 @@ export function Hill3D({
   interactive = false,
   rotate = true,
 }: Hill3DProps) {
+  // Sample point on the descending flank.
   const px = 1.4;
   const py = -1.0;
-  const here = originAt(px, py);
+  const here = toWorld(px, py);
+  // lift arrows slightly above surface for visibility
+  const ARROW_LIFT = 0.06;
+  const lifted: [number, number, number] = [
+    here[0],
+    here[1] + ARROW_LIFT,
+    here[2],
+  ];
+
+  // Gradient direction in input space
   const gx = fx(px, py);
   const gy = fy(px, py);
   const glen = Math.hypot(gx, gy) || 1;
   const ugx = gx / glen;
   const ugy = gy / glen;
+
+  // Length of demo arrows in INPUT space (not lifted up the surface)
+  const LEN = 1.2;
+  // Partial arrows: pure +x and pure +y (input) directions, flat
+  const fxTip: [number, number, number] = [px + LEN, lifted[1], -py];
+  const fyTip: [number, number, number] = [px, lifted[1], -(py + LEN)];
+  // Gradient arrow: flat in input plane along (ugx, ugy)
+  const gradTip: [number, number, number] = [
+    px + ugx * LEN,
+    lifted[1],
+    -(py + ugy * LEN),
+  ];
+
+  // Disable rotation for modes where alignment with x/y must read correctly.
+  const wantsRotation = rotate && mode !== "partials" && mode !== "gradient";
 
   return (
     <div className={className}>
@@ -248,36 +314,38 @@ export function Hill3D({
         camera={{ position: [4.8, 4.4, 5.8], fov: 36 }}
         style={{ width: "100%", height: "100%" }}
         gl={{ preserveDrawingBuffer: true, antialias: true }}
-        shadows
       >
         <color attach="background" args={[palette.paper]} />
         <fog attach="fog" args={[palette.paper, 9, 18]} />
         <ambientLight intensity={0.55} />
+        <directionalLight position={[6, 9, 4]} intensity={1.25} />
         <directionalLight
-          position={[6, 9, 4]}
-          intensity={1.3}
-          castShadow
-          shadow-mapSize-width={1024}
-          shadow-mapSize-height={1024}
+          position={[-4, 3, -5]}
+          intensity={0.3}
+          color="#BFDBFE"
         />
-        <directionalLight position={[-4, 3, -5]} intensity={0.3} color="#BFDBFE" />
 
-        <AutoRotate enabled={rotate}>
+        <AutoRotate enabled={wantsRotation}>
           <Surface />
           <ContourLines />
 
-          {mode !== "static" && <PulseSphere position={here} />}
+          {mode !== "static" && <PulseSphere position={lifted} />}
 
+          {/* CANDIDATES (many) */}
           {mode === "many" &&
             Array.from({ length: 10 }).map((_, i) => {
               const a = (i / 10) * Math.PI * 2;
-              const dx = Math.cos(a);
-              const dz = Math.sin(a);
-              const tip = offset(here, dx, dz, 0.55);
+              const cx = Math.cos(a);
+              const cy = Math.sin(a);
+              const tip: [number, number, number] = [
+                px + cx * 0.6,
+                lifted[1],
+                -(py + cy * 0.6),
+              ];
               return (
                 <Arrow
                   key={i}
-                  from={here}
+                  from={lifted}
                   to={tip}
                   color={palette.slate}
                   thickness={0.025}
@@ -286,17 +354,22 @@ export function Hill3D({
               );
             })}
 
+          {/* BEST: many faded + one amber */}
           {mode === "best" && (
             <>
               {Array.from({ length: 10 }).map((_, i) => {
                 const a = (i / 10) * Math.PI * 2;
-                const dx = Math.cos(a);
-                const dz = Math.sin(a);
-                const tip = offset(here, dx, dz, 0.5);
+                const cx = Math.cos(a);
+                const cy = Math.sin(a);
+                const tip: [number, number, number] = [
+                  px + cx * 0.55,
+                  lifted[1],
+                  -(py + cy * 0.55),
+                ];
                 return (
                   <Arrow
                     key={i}
-                    from={here}
+                    from={lifted}
                     to={tip}
                     color="#CBD5E1"
                     thickness={0.018}
@@ -305,8 +378,8 @@ export function Hill3D({
                 );
               })}
               <Arrow
-                from={here}
-                to={offset(here, ugx, ugy, 1.1)}
+                from={lifted}
+                to={gradTip}
                 color={palette.amber}
                 thickness={0.055}
                 headSize={0.26}
@@ -315,50 +388,71 @@ export function Hill3D({
             </>
           )}
 
+          {/* PARTIALS: flat +x and +y arrows with labels */}
           {mode === "partials" && (
             <>
               <Arrow
-                from={here}
-                to={offset(here, 1, 0, 1.0)}
+                from={lifted}
+                to={fxTip}
                 color={palette.teal}
-                thickness={0.05}
-                headSize={0.22}
+                thickness={0.055}
+                headSize={0.24}
                 emissive
               />
+              <AxisLabel
+                position={[fxTip[0] + 0.35, fxTip[1] + 0.15, fxTip[2]]}
+                text="x"
+                color={palette.teal}
+              />
               <Arrow
-                from={here}
-                to={offset(here, 0, 1, 1.0)}
+                from={lifted}
+                to={fyTip}
                 color="#0F766E"
-                thickness={0.05}
-                headSize={0.22}
+                thickness={0.055}
+                headSize={0.24}
                 emissive
+              />
+              <AxisLabel
+                position={[fyTip[0], fyTip[1] + 0.15, fyTip[2] - 0.35]}
+                text="y"
+                color="#0F766E"
               />
             </>
           )}
 
+          {/* GRADIENT: partials + the combined ∇f arrow */}
           {mode === "gradient" && (
             <>
               <Arrow
-                from={here}
-                to={offset(here, 1, 0, 0.7)}
+                from={lifted}
+                to={[px + LEN * 0.6, lifted[1], -py]}
                 color={palette.teal}
-                thickness={0.032}
-                headSize={0.15}
+                thickness={0.035}
+                headSize={0.16}
               />
               <Arrow
-                from={here}
-                to={offset(here, 0, 1, 0.7)}
+                from={lifted}
+                to={[px, lifted[1], -(py + LEN * 0.6)]}
                 color="#0F766E"
-                thickness={0.032}
-                headSize={0.15}
+                thickness={0.035}
+                headSize={0.16}
               />
               <Arrow
-                from={here}
-                to={offset(here, ugx, ugy, 1.15)}
+                from={lifted}
+                to={gradTip}
                 color={palette.amber}
                 thickness={0.06}
                 headSize={0.28}
                 emissive
+              />
+              <AxisLabel
+                position={[
+                  gradTip[0] + ugx * 0.35,
+                  gradTip[1] + 0.18,
+                  gradTip[2] - ugy * 0.35,
+                ]}
+                text="∇"
+                color={palette.amber}
               />
             </>
           )}

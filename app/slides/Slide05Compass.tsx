@@ -1,37 +1,57 @@
 "use client";
 
-import { Hill3D } from "@/components/visuals/Hill3D";
 import { ArrowField } from "@/components/visuals/ArrowField";
-import { Eyebrow, Headline, Lede } from "@/components/Type";
+import { Hill3D } from "@/components/visuals/Hill3D";
+import { SectionLabel, Title, BulletList, Mono, Callout } from "@/components/Type";
 
 export default function Slide05Compass() {
   return (
     <div className="h-full flex flex-col gap-5">
-      <div className="flex flex-col gap-2">
-        <Eyebrow>The idea</Eyebrow>
-        <Headline>
-          We need a <span className="text-amber">3D compass</span>.
-        </Headline>
-        <Lede>
-          At any point on a surface — which direction goes uphill the fastest?
-        </Lede>
+      <div>
+        <SectionLabel>05 · Concept</SectionLabel>
+        <Title>The direction of fastest increase.</Title>
       </div>
-      <div className="flex-1 grid grid-cols-[3fr_2fr] gap-6 min-h-0">
-        <div className="rounded-2xl border border-slate-200/60 overflow-hidden bg-paper">
-          <Hill3D mode="best" className="w-full h-full min-h-[340px]" rotate />
-        </div>
+
+      <div className="flex-1 grid grid-cols-[6fr_5fr] gap-8 min-h-0">
         <div className="flex flex-col gap-4 min-h-0">
-          <div className="rounded-2xl border border-slate-200/60 bg-paper p-4 flex-1 grid place-items-center min-h-0">
-            <ArrowField className="w-full max-w-[280px]" />
+          <BulletList
+            items={[
+              <>
+                Stand on a surface <Mono>z = f(x, y)</Mono>. You can step in
+                any direction — each unit vector <Mono>u</Mono> in the input
+                plane is a valid choice.
+              </>,
+              <>
+                Every direction has its own slope, called a <strong>directional
+                derivative</strong>: <Mono>D<sub>u</sub>f</Mono> = the rate of
+                change of <Mono>f</Mono> along <Mono>u</Mono>.
+              </>,
+              <>
+                Out of all those directions, exactly <em>one</em> gives the
+                largest rate of climb. That direction is what we want.
+              </>,
+              <>
+                Two questions we want one object to answer at every point:
+                <ul className="mt-1 ml-4 space-y-0.5 list-[lower-alpha]">
+                  <li>Which way is steepest uphill?</li>
+                  <li>How steep is it that way?</li>
+                </ul>
+              </>,
+            ]}
+          />
+          <Callout label="working title">
+            We call this object the <strong>gradient</strong>. It’s a vector
+            that lives at every point of the input plane and acts like a 3D
+            compass for change.
+          </Callout>
+        </div>
+
+        <div className="grid grid-rows-[1fr_1fr] gap-4 min-h-0">
+          <div className="rounded-lg border border-[#E5DCC4] bg-paper overflow-hidden min-h-0">
+            <Hill3D mode="best" className="w-full h-full" rotate />
           </div>
-          <div className="rounded-2xl bg-amber/12 border-2 border-amber/50 p-5">
-            <p className="text-base uppercase tracking-[0.2em] text-amberDeep font-bold mb-2" style={{ color: "#B45309" }}>
-              the rule
-            </p>
-            <p className="text-[clamp(1rem,1.35vw,1.45rem)] text-ink leading-snug">
-              Out of <em>every</em> direction you could step, only one climbs the
-              fastest. That arrow is our 3D compass.
-            </p>
+          <div className="rounded-lg border border-[#E5DCC4] bg-paper p-3 grid place-items-center min-h-0">
+            <ArrowField className="w-full max-h-full" />
           </div>
         </div>
       </div>

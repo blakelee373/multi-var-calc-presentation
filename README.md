@@ -26,12 +26,17 @@ Slides are deep-linkable: `?slide=7` reloads at slide 7.
 
 ## Exporting assets for Google Slides
 
-Every slide has a **Download PNG** button that exports the current slide at exactly **1920 × 1080**. The deck doubles as a Google Slides asset pack:
+Every slide ships with **two** export buttons in the top-right:
 
-1. Run `npm run dev`
+- **Download PNG** — single still frame at exactly **1920 × 1080**. Use for static slides (1, 2, 4, 6, 7, 8, 9).
+- **Download GIF** — captures ~3 seconds of the slide at 12 fps (1280 px wide) and encodes it client-side via `gif.js`. Use for slides whose value comes from motion (1's wiggling compass, 3 and 10's path tracing, the rotating 3D surfaces). Drop the GIF straight into Google Slides via **Insert › Image** — animation survives the trip.
+
+Workflow:
+
+1. `npm run dev`
 2. Step through each slide
-3. Click **Download PNG** on each one
-4. Drag the resulting `slide-01-title.png` … `slide-10-recap.png` into your Google Slides deck
+3. Click **Download PNG** (or **GIF**) per slide
+4. Drag the resulting files into your Google Slides deck
 
 Because every visual is an inline React/SVG component (or a r3f scene), exports are always crisp regardless of size — there are no pre-rendered binary assets in the repo.
 

@@ -1,70 +1,105 @@
-"use client";
-
-import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 
-export function Eyebrow({ children }: { children: ReactNode }) {
+export function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <motion.p
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="text-base xl:text-lg uppercase tracking-[0.32em] text-amber font-semibold"
-    >
-      {children}
-    </motion.p>
-  );
-}
-
-export function Display({ children }: { children: ReactNode }) {
-  return (
-    <motion.h1
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.55, delay: 0.05 }}
-      className="text-[clamp(2.75rem,5.6vw,6rem)] font-bold leading-[0.98] tracking-tight text-ink"
-    >
-      {children}
-    </motion.h1>
-  );
-}
-
-export function Headline({ children }: { children: ReactNode }) {
-  return (
-    <motion.h2
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="text-[clamp(2.25rem,4.2vw,4.25rem)] font-bold leading-[1.02] tracking-tight text-ink"
-    >
-      {children}
-    </motion.h2>
-  );
-}
-
-export function Lede({ children }: { children: ReactNode }) {
-  return (
-    <motion.p
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.15 }}
-      className="text-[clamp(1.15rem,1.65vw,1.75rem)] text-ink/70 leading-snug max-w-[42ch]"
-    >
-      {children}
-    </motion.p>
-  );
-}
-
-export function Body({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <p className={`text-[clamp(1rem,1.35vw,1.45rem)] text-ink/80 leading-snug ${className ?? ""}`}>
+    <p className="text-[13px] uppercase tracking-[0.32em] text-ink/55 font-semibold">
       {children}
     </p>
   );
 }
 
-export function Mono({ children, className }: { children: ReactNode; className?: string }) {
+export function Title({ children }: { children: ReactNode }) {
   return (
-    <span className={`font-mono tabular-nums ${className ?? ""}`}>{children}</span>
+    <h2 className="text-[clamp(2.25rem,3.6vw,3.6rem)] font-bold leading-[1.05] tracking-tight text-ink mt-3">
+      {children}
+    </h2>
+  );
+}
+
+export function DisplayTitle({ children }: { children: ReactNode }) {
+  return (
+    <h1 className="text-[clamp(2.75rem,5vw,5.25rem)] font-bold leading-[0.98] tracking-tight text-ink">
+      {children}
+    </h1>
+  );
+}
+
+export function Sub({ children }: { children: ReactNode }) {
+  return (
+    <p className="text-[clamp(1.05rem,1.4vw,1.4rem)] text-ink/65 leading-snug max-w-[60ch] mt-3">
+      {children}
+    </p>
+  );
+}
+
+export function BulletList({
+  items,
+  className,
+  variant = "dash",
+}: {
+  items: ReactNode[];
+  className?: string;
+  variant?: "dash" | "dot" | "num";
+}) {
+  return (
+    <ul className={`space-y-3 ${className ?? ""}`}>
+      {items.map((node, i) => (
+        <li
+          key={i}
+          className="flex gap-3 text-[clamp(0.95rem,1.18vw,1.18rem)] text-ink/85 leading-snug"
+        >
+          <span
+            aria-hidden
+            className={
+              variant === "num"
+                ? "shrink-0 w-6 text-amber font-bold text-right"
+                : variant === "dot"
+                ? "shrink-0 w-4 text-amber font-bold"
+                : "shrink-0 w-4 text-amber font-bold"
+            }
+          >
+            {variant === "num" ? `${i + 1}.` : variant === "dot" ? "●" : "—"}
+          </span>
+          <span className="flex-1">{node}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function Callout({
+  label,
+  children,
+}: {
+  label?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="border-l-[3px] border-amber pl-4 py-1">
+      {label ? (
+        <p className="text-[11px] uppercase tracking-[0.22em] text-amber font-bold mb-1">
+          {label}
+        </p>
+      ) : null}
+      <div className="text-[clamp(1rem,1.3vw,1.3rem)] text-ink leading-snug">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function Mono({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`font-mono tabular-nums whitespace-nowrap ${className ?? ""}`}
+    >
+      {children}
+    </span>
   );
 }

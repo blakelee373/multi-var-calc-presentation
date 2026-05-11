@@ -1,66 +1,56 @@
 "use client";
 
-import { Character } from "@/components/visuals/Character";
 import { CurveXY } from "@/components/visuals/CurveXY";
-import { CompassIcon } from "@/components/visuals/CompassIcon";
-import { Eyebrow, Headline, Lede } from "@/components/Type";
-import { palette } from "@/lib/palette";
+import { SectionLabel, Title, BulletList, Mono } from "@/components/Type";
 
 export default function Slide02Path() {
   return (
-    <div className="h-full flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <Eyebrow>Chapter 1 — one path</Eyebrow>
-        <Headline>
-          In normal calculus, there is usually{" "}
-          <span className="text-teal">one path</span> to follow.
-        </Headline>
-        <Lede>
-          You move along one direction and ask:{" "}
-          <em>how fast is the function changing?</em>
-        </Lede>
+    <div className="h-full flex flex-col gap-5">
+      <div>
+        <SectionLabel>02 · Foundations</SectionLabel>
+        <Title>Single-variable calculus, in one breath.</Title>
       </div>
 
-      <div className="flex-1 grid grid-cols-2 gap-8 items-stretch min-h-0">
-        <div className="relative rounded-2xl overflow-hidden border border-slate-200/60 bg-paper/70">
-          <svg viewBox="0 0 500 300" className="w-full h-full" aria-hidden>
-            <defs>
-              <linearGradient id="s2sky" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#FDE4B6" />
-                <stop offset="100%" stopColor="#F8CB85" />
-              </linearGradient>
-              <linearGradient id="s2ground" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#E8DDC4" />
-                <stop offset="100%" stopColor="#C9BB97" />
-              </linearGradient>
-            </defs>
-            <rect width="500" height="220" fill="url(#s2sky)" />
-            <rect y="220" width="500" height="80" fill="url(#s2ground)" />
-            <line x1="0" y1="220" x2="500" y2="220" stroke={palette.ink} strokeWidth="2" />
-            {/* sun */}
-            <circle cx="420" cy="60" r="32" fill="#FCD988" />
-            {/* dashed path */}
-            <line x1="40" y1="248" x2="440" y2="248" stroke={palette.amberDeep} strokeWidth="5" strokeDasharray="12 8" strokeLinecap="round" />
-            {/* sign */}
-            <g transform="translate(440 200)">
-              <rect x="-26" y="-16" width="52" height="22" rx="4" fill={palette.paper} stroke={palette.ink} strokeWidth="2.5" />
-              <text x="0" y="1" textAnchor="middle" fontSize="12" fontWeight="800" fill={palette.ink}>NORTH</text>
-              <line x1="0" y1="6" x2="0" y2="48" stroke={palette.ink} strokeWidth="2.5" />
-            </g>
-          </svg>
-          <div className="absolute bottom-3 left-12 flex items-end gap-3">
-            <Character size={130} />
-            <CompassIcon size={84} />
-          </div>
+      <div className="flex-1 grid grid-cols-[6fr_5fr] gap-10 min-h-0">
+        <div className="flex flex-col gap-5">
+          <BulletList
+            items={[
+              <>
+                A function <Mono>f : ℝ → ℝ</Mono> takes one number in and gives
+                one number back.
+              </>,
+              <>
+                The <strong>derivative</strong>{" "}
+                <Mono>f′(x) = lim<sub>h→0</sub> [f(x+h) − f(x)] ⁄ h</Mono>{" "}
+                measures the instantaneous rate of change.
+              </>,
+              <>
+                Geometrically, <Mono>f′(x)</Mono> is the <strong>slope of the tangent line</strong> to the graph at <Mono>x</Mono>.
+              </>,
+              <>
+                Example: <Mono>f(x) = x²</Mono> gives{" "}
+                <Mono>f′(x) = 2x</Mono>; at <Mono>x = 3</Mono> the slope is{" "}
+                <Mono>6</Mono>.
+              </>,
+              <>
+                <strong>The constraint:</strong> motion happens along{" "}
+                <em>one</em> axis. There is exactly one direction to ask about.
+              </>,
+            ]}
+          />
+          <p className="text-[clamp(0.9rem,1.1vw,1.1rem)] text-ink/55 italic mt-1">
+            We need to keep this picture in mind — the multivariable case will
+            generalize each of these ideas.
+          </p>
         </div>
-        <div className="rounded-2xl border border-slate-200/60 bg-paper p-6 flex flex-col">
-          <Eyebrow>single-variable change</Eyebrow>
-          <div className="flex-1 grid place-items-center mt-3">
+
+        <div className="flex flex-col min-h-0">
+          <div className="flex-1 rounded-lg border border-[#E5DCC4] bg-paper p-4 grid place-items-center min-h-0">
             <CurveXY className="w-full" showTangent />
           </div>
-          <p className="text-[clamp(0.95rem,1.15vw,1.2rem)] text-ink/65 mt-3 italic">
-            Slope at a point = the derivative of <span className="font-mono">f</span> at that{" "}
-            <span className="font-mono">x</span>.
+          <p className="text-[clamp(0.85rem,1vw,1.05rem)] text-ink/60 italic mt-2 text-center">
+            The orange line is tangent to the curve at the marked point — its
+            slope <em>is</em> <Mono>f′(x)</Mono>.
           </p>
         </div>
       </div>
